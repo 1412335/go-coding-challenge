@@ -1,0 +1,193 @@
+syntax="proto3";
+
+package user;
+
+// import "google/protobuf/empty.proto";
+import "google/protobuf/wrappers.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/field_mask.proto";
+
+import "google/api/annotations.proto";
+
+import "protoc-gen-swagger/options/annotations.proto";
+
+option go_package = "./;user";
+
+option (grpc.gateway.protoc_gen_swagger.options.openapiv2_swagger) = {
+    info: {
+		title: "User service";
+		version: "1.0";
+	};
+    schemes: HTTP;
+};
+
+service UserService {
+    rpc Create(CreateUserRequest) returns (CreateUserResponse) {
+        option (google.api.http) = {
+            post: "/api/v1/users"
+            body: "*"
+        };
+    };
+	rpc Delete(DeleteUserRequest) returns (DeleteUserResponse) {
+        // option (google.api.http) = {
+        //     delete: "/api/v1/users/{id}"
+        // };
+    };
+	rpc Update(UpdateUserRequest) returns (UpdateUserResponse) {
+		// option (google.api.http) = {
+        //     put: "/api/v1/users/{user.id}"
+		// 	body: "user"
+		// 	additional_bindings: [
+		// 		{
+		// 			patch: "/api/v1/users/{user.id}"
+		// 			body: "user"
+		// 		},
+		// 		{
+		// 			patch: "/api/v1/users/{user.id}"
+		// 			body: "*"
+		// 		}
+		// 	]
+		// };
+	}
+	rpc List(ListUsersRequest) returns (ListUsersResponse) {
+        // option (google.api.http) = {
+        //     get: "/api/v1/users"
+        // };
+    };
+    rpc ListStream(ListUsersRequest) returns (stream User) {
+        // option (google.api.http) = {
+        //     get: "/api/v1/users/stream"
+        // };
+    };
+
+    // auth
+	rpc Login(LoginRequest) returns (LoginResponse) {
+        // option (google.api.http) = {
+        //     post: "/api/v1/users/login"
+        //     body: "*"
+        // };
+    }
+	rpc Logout(LogoutRequest) returns (LogoutResponse) {
+        // option (google.api.http) = {
+        //     post: "/api/v1/users/logout"
+        //     body: "*"
+        // };
+    }
+	rpc Validate(ValidateRequest) returns (ValidateResponse) {
+        // option (google.api.http) = {
+        //     post: "/api/v1/users/validate"
+        //     body: "*"
+        // };
+    }
+}
+
+enum Role {
+    GUEST = 0;
+    USER = 1;
+    ADMIN = 2;
+    ROOT = 3;
+}
+
+message User {
+    string id = 1;
+    Role role = 2;
+    string username = 3;
+    string fullname = 4;
+    string avatar = 5;
+	bool active = 6;
+    string password = 7;
+    string email = 9;
+    google.protobuf.Timestamp created_at = 10;
+    google.protobuf.Timestamp updated_at = 11;
+    string verify_token = 12;
+}
+
+message CreateUserRequest {
+	string username = 1;
+	string fullname = 2;
+	string email = 3;
+	string password = 4;
+    string avatar = 5;
+}
+
+message CreateUserResponse {
+	User user = 1;
+	string token = 2;
+}
+
+message UserRole {
+    Role role = 1;
+}
+
+message ListUsersRequest {
+    // list users created after timestamp
+    google.protobuf.Timestamp created_since = 1;
+    // list users in duration from created_since
+    google.protobuf.Duration older_then = 2;
+    google.protobuf.StringValue id = 3 [
+        (grpc.gateway.protoc_gen_swagger.options.openapiv2_field) = {
+            pattern: "^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$",
+            title: "id",
+            description: "user id",
+            format: "uuid",
+            example: "\"2438ac3c-37eb-4902-adef-ed16b4431030\""
+        }
+    ];
+    google.protobuf.StringValue username = 4;
+	google.protobuf.StringValue fullname = 5;
+	google.protobuf.StringValue email = 6;
+    Role role = 8;
+}
+
+message ListUsersResponse {
+	repeated User users = 1;
+}
+
+message UpdateUserRequest {
+    User user = 1;
+    // The update mask applies to the resource. For the `FieldMask` definition,
+    // see https://developers.google.com/protocol-buffers/docs/reference/google.protobuf#fieldmask
+    google.protobuf.FieldMask update_mask = 2;
+}
+
+message UpdateUserResponse {
+	User user = 1;
+}
+
+message DeleteUserRequest {
+	string id = 1;
+}
+
+message DeleteUserResponse {
+	string id = 1;
+}
+
+// auth
+message LoginRequest {
+	string email = 1;
+	string password = 2;
+}
+
+message LoginResponse {
+	User user = 1;
+	string token = 2;
+}
+
+message LogoutRequest {
+	string id = 1;
+}
+
+message LogoutResponse {
+}
+
+message ValidateRequest {
+	string token = 1;
+}
+
+message ValidateResponse {
+	string id = 1;
+	string username = 2;
+	string fullname = 3;
+	string email = 4;
+}

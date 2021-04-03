@@ -1,0 +1,73 @@
+version: '2'
+
+services:
+  mysql:
+    image: mysql:5.7.26
+    # image: mysql
+    container_name: mysql
+    restart: on-failure
+    volumes:
+      - ./docker/mysql/data:/var/lib/mysql
+    environment:
+      # - MYSQL_ROOT_HOST=${DB_HOST} 
+      # GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY 'password' WITH GRANT OPTION;
+      - MYSQL_ROOT_PASSWORD=${DB_PASSWORD}
+      - MYSQL_DATABASE=${DB_NAME}
+      - MYSQL_USER=${DB_USER}
+      - MYSQL_PASSWORD=${DB_PASSWORD}
+    ports:
+      - "3306:3306"
+    networks:
+      - go-coding-challenge
+
+  postgres:
+    container_name: postgres
+    image: "postgres:alpine"
+    restart: on-failure
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=root
+    volumes:
+      - postgres:/var/lib/postgresql/data
+      - ./docker/postgres:/docker-entrypoint-initdb.d
+    networks:
+      - go-coding-challenge
+
+  redis:
+    image: redis:alpine
+    container_name: redis
+    env_file: ./docker/redis/docker-compose.env
+    volumes:
+    - ./docker/redis/data:/data
+    - ./docker/redis/config:/usr/local/etc/redis/
+#    command: ["redis-server","/usr/local/etc/redis/redis.conf", "--appendonly", "yes"]
+#    command: ["sh", "-c", "redis-server", "--appendonly", "yes", "--requirepass", "$${REDIS_PASS}"]
+    entrypoint: ["sh", "-c", "redis-server --appendonly yes --requirepass $${REDIS_PASS}"]
+    ports:
+      - "6378:6379"
+    networks:
+      - go-coding-challenge
+
+  user-service:
+    image: go-coding-challenge/user-service
+    container_name: user-service
+    # restart: on-failure
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - '9090:9090' # gRPC server
+      - '8000:8000' # gRPC gateway
+    command: ["-c","./service/user/config.yml","-v","1.0","user-service"]
+    networks:
+      - go-coding-challenge
+    depends_on:
+      - postgres
+
+networks:
+  go-coding-challenge:
+
+volumes:
+  postgres:
