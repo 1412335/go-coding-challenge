@@ -20,6 +20,7 @@ option (grpc.gateway.protoc_gen_swagger.options.openapiv2_swagger) = {
 		version: "1.0";
 	};
     schemes: HTTP;
+    schemes: HTTPS;
 };
 
 service UserService {
@@ -30,55 +31,55 @@ service UserService {
         };
     };
 	rpc Delete(DeleteUserRequest) returns (DeleteUserResponse) {
-        // option (google.api.http) = {
-        //     delete: "/api/v1/users/{id}"
-        // };
+        option (google.api.http) = {
+            delete: "/api/v1/users/{id}"
+        };
     };
 	rpc Update(UpdateUserRequest) returns (UpdateUserResponse) {
-		// option (google.api.http) = {
-        //     put: "/api/v1/users/{user.id}"
-		// 	body: "user"
-		// 	additional_bindings: [
-		// 		{
-		// 			patch: "/api/v1/users/{user.id}"
-		// 			body: "user"
-		// 		},
-		// 		{
-		// 			patch: "/api/v1/users/{user.id}"
-		// 			body: "*"
-		// 		}
-		// 	]
-		// };
+		option (google.api.http) = {
+            put: "/api/v1/users/{user.id}"
+			body: "user"
+			additional_bindings: [
+				{
+					patch: "/api/v1/users/{user.id}"
+					body: "user"
+				},
+				{
+					patch: "/api/v1/users/{user.id}"
+					body: "*"
+				}
+			]
+		};
 	}
 	rpc List(ListUsersRequest) returns (ListUsersResponse) {
-        // option (google.api.http) = {
-        //     get: "/api/v1/users"
-        // };
+        option (google.api.http) = {
+            get: "/api/v1/users"
+        };
     };
     rpc ListStream(ListUsersRequest) returns (stream User) {
-        // option (google.api.http) = {
-        //     get: "/api/v1/users/stream"
-        // };
+        option (google.api.http) = {
+            get: "/api/v1/users/stream"
+        };
     };
 
     // auth
 	rpc Login(LoginRequest) returns (LoginResponse) {
-        // option (google.api.http) = {
-        //     post: "/api/v1/users/login"
-        //     body: "*"
-        // };
+        option (google.api.http) = {
+            post: "/api/v1/users/login"
+            body: "*"
+        };
     }
 	rpc Logout(LogoutRequest) returns (LogoutResponse) {
-        // option (google.api.http) = {
-        //     post: "/api/v1/users/logout"
-        //     body: "*"
-        // };
+        option (google.api.http) = {
+            post: "/api/v1/users/logout"
+            body: "*"
+        };
     }
 	rpc Validate(ValidateRequest) returns (ValidateResponse) {
-        // option (google.api.http) = {
-        //     post: "/api/v1/users/validate"
-        //     body: "*"
-        // };
+        option (google.api.http) = {
+            post: "/api/v1/users/validate"
+            body: "*"
+        };
     }
 }
 
