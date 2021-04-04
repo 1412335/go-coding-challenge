@@ -13,7 +13,7 @@ var (
 
 // Logger factory is a generic logging interface
 type Factory interface {
-	// Init initialises options
+	// Init initializes options
 	Init(options ...Option) error
 	// Get logger
 	Bg() Logger
@@ -29,7 +29,7 @@ type Factory interface {
 	Fatal(msg string, fields ...zapcore.Field)
 }
 
-// Init initialises options
+// Init initializes options
 func Init(opts ...Option) error {
 	return DefaultLogger.Init(opts...)
 }

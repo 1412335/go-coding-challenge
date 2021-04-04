@@ -107,11 +107,6 @@ func (s *Server) insecureServer() grpc.ServerOption {
 	return grpc.Creds(creds)
 }
 
-// tracing
-func (s *Server) tracingInterceptor() (grpc.UnaryServerInterceptor, grpc.StreamServerInterceptor) {
-	return nil, nil
-}
-
 func (s *Server) buildServerInterceptors() []grpc.ServerOption {
 	var unaryInterceptors []grpc.UnaryServerInterceptor
 	var streamInterceptors []grpc.StreamServerInterceptor

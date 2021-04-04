@@ -13,11 +13,8 @@ import (
 
 type UserClaims struct {
 	jwt.StandardClaims
-	ID       string `json:"id"`
-	Username string
-	Fullname string
-	Email    string
-	Role     string
+	ID    string `json:"id"`
+	Email string `json:"email"`
 }
 
 type TokenService struct {
@@ -36,10 +33,7 @@ func (t *TokenService) Generate(user *User) (string, error) {
 	claims := UserClaims{
 		StandardClaims: t.jwtManager.GetStandardClaims(),
 		ID:             user.ID,
-		Username:       user.Username,
-		Fullname:       user.Fullname,
 		Email:          user.Email,
-		Role:           user.Role,
 	}
 	return t.jwtManager.Generate(claims)
 }

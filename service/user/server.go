@@ -59,8 +59,6 @@ func NewServer(srvConfig *configs.ServiceConfig, opt ...server.Option) *Server {
 
 func (s *Server) Run() error {
 	return s.server.Run(func(srv *grpc.Server) error {
-		log.Info("Register", zap.String("service", "user"))
-
 		// implement service
 		api := NewUserService(s.dal, s.tokenSrv)
 

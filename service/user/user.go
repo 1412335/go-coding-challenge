@@ -1,77 +1,42 @@
 package user
 
 import (
-	"encoding/json"
 	"strings"
 	"time"
 
 	pb "github.com/1412335/moneyforward-go-coding-challenge/pkg/api/user"
 	"github.com/1412335/moneyforward-go-coding-challenge/pkg/errors"
 	"github.com/1412335/moneyforward-go-coding-challenge/pkg/utils"
-	"github.com/microcosm-cc/bluemonday"
 	"gopkg.in/validator.v2"
 	"gorm.io/gorm"
 )
 
 type User struct {
-	ID          string `json:"id"`
-	Username    string `validate:"nonzero,regexp=^[a-zA-Z0-9_]*$"`
-	Fullname    string `validate:"nonzero,max=100"`
-	Active      bool
-	Password    string `json:"-" validate:"min=8"`
-	Email       string `gorm:"uniqueIndex" validate:"nonzero"`
-	VerifyToken string
-	Role        string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID        string    `json:"id"`
+	Email     string    `gorm:"uniqueIndex" validate:"nonzero"`
+	Password  string    `json:"-" validate:"min=8"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 func (u *User) transform2GRPC() *pb.User {
 	user := &pb.User{
-		Id:          u.ID,
-		Username:    u.Username,
-		Fullname:    u.Fullname,
-		Active:      u.Active,
-		Email:       u.Email,
-		VerifyToken: u.VerifyToken,
-	}
-	if role, ok := pb.Role_value[u.Role]; ok {
-		user.Role = pb.Role(role)
+		Id:    u.ID,
+		Email: u.Email,
 	}
 	return user
 }
 
 func (u *User) updateFromGRPC(user *pb.User) {
-	u.Username = user.GetUsername()
-	u.Fullname = user.GetFullname()
 	u.Email = user.GetEmail()
 	u.Password = user.GetPassword()
-	// check gte admin
-	if role, ok := pb.Role_value[u.Role]; ok && pb.Role(role) >= pb.Role_ADMIN {
-		u.Role = user.GetRole().String()
-		u.Active = user.GetActive()
-	}
 }
 
 func (u *User) cache() error {
-	if DefaultCache == nil {
-		return nil
-	}
-	if bytes, err := json.Marshal(u); err != nil {
-		return err
-	} else if err := DefaultCache.Set(u.ID, string(bytes)); err != nil {
-		return err
-	}
 	return nil
 }
 
 func (u *User) rmCache() error {
-	if DefaultCache == nil {
-		return nil
-	}
-	if err := DefaultCache.Delete(u.ID); err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -87,9 +52,6 @@ func (u *User) hashPassword() error {
 }
 
 func (u *User) sanitize() {
-	p := bluemonday.UGCPolicy()
-	u.Username = p.Sanitize(u.Username)
-	u.Fullname = p.Sanitize(u.Fullname)
 }
 
 func (u *User) validate() error {

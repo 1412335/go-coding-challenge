@@ -34,21 +34,6 @@
         },
         "parameters": [
           {
-            "name": "created_since",
-            "description": "list users created after timestamp.",
-            "in": "query",
-            "required": false,
-            "type": "string",
-            "format": "date-time"
-          },
-          {
-            "name": "older_then",
-            "description": "list users in duration from created_since.",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
             "name": "id",
             "description": "id. user id",
             "in": "query",
@@ -57,35 +42,10 @@
             "format": "uuid"
           },
           {
-            "name": "username",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "fullname",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
             "name": "email",
             "in": "query",
             "required": false,
             "type": "string"
-          },
-          {
-            "name": "role",
-            "in": "query",
-            "required": false,
-            "type": "string",
-            "enum": [
-              "GUEST",
-              "USER",
-              "ADMIN",
-              "ROOT"
-            ],
-            "default": "GUEST"
           }
         ],
         "tags": [
@@ -216,21 +176,6 @@
         },
         "parameters": [
           {
-            "name": "created_since",
-            "description": "list users created after timestamp.",
-            "in": "query",
-            "required": false,
-            "type": "string",
-            "format": "date-time"
-          },
-          {
-            "name": "older_then",
-            "description": "list users in duration from created_since.",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
             "name": "id",
             "description": "id. user id",
             "in": "query",
@@ -239,35 +184,10 @@
             "format": "uuid"
           },
           {
-            "name": "username",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "fullname",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
             "name": "email",
             "in": "query",
             "required": false,
             "type": "string"
-          },
-          {
-            "name": "role",
-            "in": "query",
-            "required": false,
-            "type": "string",
-            "enum": [
-              "GUEST",
-              "USER",
-              "ADMIN",
-              "ROOT"
-            ],
-            "default": "GUEST"
           }
         ],
         "tags": [
@@ -502,19 +422,10 @@
     "userCreateUserRequest": {
       "type": "object",
       "properties": {
-        "username": {
-          "type": "string"
-        },
-        "fullname": {
-          "type": "string"
-        },
         "email": {
           "type": "string"
         },
         "password": {
-          "type": "string"
-        },
-        "avatar": {
           "type": "string"
         }
       }
@@ -583,16 +494,6 @@
     "userLogoutResponse": {
       "type": "object"
     },
-    "userRole": {
-      "type": "string",
-      "enum": [
-        "GUEST",
-        "USER",
-        "ADMIN",
-        "ROOT"
-      ],
-      "default": "GUEST"
-    },
     "userUpdateUserRequest": {
       "type": "object",
       "properties": {
@@ -619,25 +520,10 @@
         "id": {
           "type": "string"
         },
-        "role": {
-          "$ref": "#/definitions/userRole"
-        },
-        "username": {
+        "email": {
           "type": "string"
-        },
-        "fullname": {
-          "type": "string"
-        },
-        "avatar": {
-          "type": "string"
-        },
-        "active": {
-          "type": "boolean"
         },
         "password": {
-          "type": "string"
-        },
-        "email": {
           "type": "string"
         },
         "created_at": {
@@ -647,9 +533,6 @@
         "updated_at": {
           "type": "string",
           "format": "date-time"
-        },
-        "verify_token": {
-          "type": "string"
         }
       }
     },
@@ -664,17 +547,8 @@
     "userValidateResponse": {
       "type": "object",
       "properties": {
-        "id": {
-          "type": "string"
-        },
-        "username": {
-          "type": "string"
-        },
-        "fullname": {
-          "type": "string"
-        },
-        "email": {
-          "type": "string"
+        "user": {
+          "$ref": "#/definitions/userUser"
         }
       }
     }

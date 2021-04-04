@@ -12,16 +12,16 @@ import (
 )
 
 var userCmd = &cobra.Command{
-	Use:   "user",
-	Short: "Start User Service",
-	Long:  `Start User Service`,
+	Use:   "user-service",
+	Short: "Start User Service v1",
+	Long:  `Start User Service v1`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return userService()
 	},
 }
 
 func init() {
-	log.Info("user.Init")
+	log.Info("service.user.Init")
 	rootCmd.AddCommand(userCmd)
 }
 

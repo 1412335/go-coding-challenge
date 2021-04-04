@@ -2,10 +2,8 @@ syntax="proto3";
 
 package user;
 
-// import "google/protobuf/empty.proto";
 import "google/protobuf/wrappers.proto";
 import "google/protobuf/timestamp.proto";
-import "google/protobuf/duration.proto";
 import "google/protobuf/field_mask.proto";
 
 import "google/api/annotations.proto";
@@ -83,33 +81,17 @@ service UserService {
     }
 }
 
-enum Role {
-    GUEST = 0;
-    USER = 1;
-    ADMIN = 2;
-    ROOT = 3;
-}
-
 message User {
     string id = 1;
-    Role role = 2;
-    string username = 3;
-    string fullname = 4;
-    string avatar = 5;
-	bool active = 6;
-    string password = 7;
-    string email = 9;
+    string email = 2;
+    string password = 3;
     google.protobuf.Timestamp created_at = 10;
     google.protobuf.Timestamp updated_at = 11;
-    string verify_token = 12;
 }
 
 message CreateUserRequest {
-	string username = 1;
-	string fullname = 2;
 	string email = 3;
 	string password = 4;
-    string avatar = 5;
 }
 
 message CreateUserResponse {
@@ -117,15 +99,7 @@ message CreateUserResponse {
 	string token = 2;
 }
 
-message UserRole {
-    Role role = 1;
-}
-
 message ListUsersRequest {
-    // list users created after timestamp
-    google.protobuf.Timestamp created_since = 1;
-    // list users in duration from created_since
-    google.protobuf.Duration older_then = 2;
     google.protobuf.StringValue id = 3 [
         (grpc.gateway.protoc_gen_swagger.options.openapiv2_field) = {
             pattern: "^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$",
@@ -135,10 +109,7 @@ message ListUsersRequest {
             example: "\"2438ac3c-37eb-4902-adef-ed16b4431030\""
         }
     ];
-    google.protobuf.StringValue username = 4;
-	google.protobuf.StringValue fullname = 5;
 	google.protobuf.StringValue email = 6;
-    Role role = 8;
 }
 
 message ListUsersResponse {
@@ -187,8 +158,5 @@ message ValidateRequest {
 }
 
 message ValidateResponse {
-	string id = 1;
-	string username = 2;
-	string fullname = 3;
-	string email = 4;
+	User user = 1;
 }

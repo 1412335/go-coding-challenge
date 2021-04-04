@@ -21,8 +21,6 @@ import (
 )
 
 var (
-	ErrMissingUsername   = errors.BadRequest("MISSING_USERNAME", map[string]string{"username": "Missing username"})
-	ErrMissingFullname   = errors.BadRequest("MISSING_FULLNAME", map[string]string{"fullname": "Missing fullname"})
 	ErrMissingEmail      = errors.BadRequest("MISSING_EMAIL", map[string]string{"email": "Missing email"})
 	ErrDuplicateEmail    = errors.BadRequest("DUPLICATE_EMAIL", map[string]string{"email": "A user with this email address already exists"})
 	ErrInvalidEmail      = errors.BadRequest("INVALID_EMAIL", map[string]string{"email": "The email provided is invalid"})
@@ -40,10 +38,6 @@ var (
 	ErrTokenInvalid   = errors.Unauthenticated("TOKEN_INVALID", "token", "Token invalid")
 	// ErrTokenNotFound  = errors.BadRequest("TOKEN_NOT_FOUND", "Token not found")
 	// ErrTokenExpired   = errors.Unauthorized("TOKEN_EXPIRE", "Token expired")
-
-	ErrUserNotActive = errors.BadRequest("not active user", map[string]string{"active": "user not active yet"})
-
-	// ttlToken   = 24 * time.Hour
 )
 
 type userServiceImpl struct {
@@ -66,14 +60,6 @@ func NewUserService(dal *postgres.DataAccessLayer, tokenSrv *TokenService) pb.Us
 func (u *userServiceImpl) getUserByID(ctx context.Context, id string) (*User, error) {
 	user := &User{}
 	err := u.dal.GetDatabase().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// cache
-		if DefaultCache != nil {
-			if e := DefaultCache.Get(id, user); e != nil {
-				u.logger.For(ctx).Error("Get user cache", zap.Error(e))
-			} else {
-				return nil
-			}
-		}
 		// find user by id
 		if e := tx.Where(&User{ID: id}).First(user).Error; e == gorm.ErrRecordNotFound {
 			return ErrNotFound
@@ -96,9 +82,6 @@ func (u *userServiceImpl) getUserByID(ctx context.Context, id string) (*User, er
 // create user & token
 func (u *userServiceImpl) Create(ctx context.Context, req *pb.CreateUserRequest) (*pb.CreateUserResponse, error) {
 	// validate request
-	if len(req.GetUsername()) == 0 {
-		return nil, ErrMissingUsername
-	}
 	if !isValidEmail(req.GetEmail()) {
 		return nil, ErrInvalidEmail
 	}
@@ -107,14 +90,9 @@ func (u *userServiceImpl) Create(ctx context.Context, req *pb.CreateUserRequest)
 	}
 
 	user := &User{
-		ID:          uuid.New().String(),
-		Username:    req.GetUsername(),
-		Fullname:    req.GetFullname(),
-		Active:      false,
-		Email:       req.GetEmail(),
-		Password:    req.GetPassword(),
-		VerifyToken: "",
-		Role:        pb.Role_USER.String(),
+		ID:       uuid.New().String(),
+		Email:    req.GetEmail(),
+		Password: req.GetPassword(),
 	}
 	if err := user.validate(); err != nil {
 		u.logger.For(ctx).Error("Error validate user", zap.Error(err))
@@ -181,10 +159,7 @@ func (u *userServiceImpl) Update(ctx context.Context, req *pb.UpdateUserRequest)
 			u.logger.For(ctx).Error("Get user by ID", zap.Error(e))
 			return errors.InternalServerError("Get user failed", "Lookup user by ID w redis/db failed")
 		}
-		// check active
-		if !user.Active {
-			return ErrUserNotActive
-		}
+
 		u.logger.For(ctx).Info("mask", zap.Strings("path", req.GetUpdateMask().GetPaths()))
 		// If there is no update mask do a regular update
 		if req.GetUpdateMask() == nil || len(req.GetUpdateMask().GetPaths()) == 0 {
@@ -198,7 +173,7 @@ func (u *userServiceImpl) Update(ctx context.Context, req *pb.UpdateUserRequest)
 				}
 				// This doesn't translate properly if a CustomName setting is used,
 				// but none of the fields except ID has that set, so NO WORRIES.
-				fname := generator.CamelCase(path)
+				fname := path
 				field, ok := st.FieldOk(fname)
 				if !ok {
 					return errors.BadRequest("invalid field specified", map[string]string{
@@ -243,29 +218,11 @@ func (u *userServiceImpl) getUsers(ctx context.Context, req *pb.ListUsersRequest
 	var users []User
 	// build sql statement
 	psql := u.dal.GetDatabase().WithContext(ctx)
-	if req.GetCreatedSince() != nil {
-		psql = psql.Where("created_at >= ?", req.GetCreatedSince())
-	}
-	if req.GetOlderThen() != nil {
-		psql = psql.Where("created_at >= CURRENT_TIMESTAMP - INTERVAL (?)", req.GetOlderThen())
-	}
 	if req.GetId() != nil {
 		psql = psql.Where("id = ?", req.GetId())
 	}
-	if req.GetUsername() != nil {
-		psql = psql.Where("username LIKE '%?%'", req.GetUsername().Value)
-	}
-	if req.GetFullname() != nil {
-		psql = psql.Where("fullname LIKE '%?%'", req.GetFullname().Value)
-	}
 	if req.GetEmail() != nil {
 		psql = psql.Where("email LIKE '%?%'", req.GetEmail().Value)
-	}
-	if req.GetActive() != nil {
-		psql = psql.Where("active = ?", req.GetActive().Value)
-	}
-	if req.GetRole() != pb.Role_GUEST {
-		psql = psql.Where("role = ?", req.GetRole().String())
 	}
 	// exec
 	if err := psql.Order("created_at desc").Find(&users).Error; err != nil {
@@ -275,8 +232,8 @@ func (u *userServiceImpl) getUsers(ctx context.Context, req *pb.ListUsersRequest
 	// check empty from db
 	if len(users) == 0 {
 		st := status.New(codes.NotFound, "not found users")
-		des, err := st.WithDetails(&rpc.PreconditionFailure{
-			Violations: []*rpc.PreconditionFailure_Violation{
+		des, err := st.WithDetails(&errdetails.PreconditionFailure{
+			Violations: []*errdetails.PreconditionFailure_Violation{
 				{
 					Type:        "USER",
 					Subject:     "no users",
@@ -292,12 +249,6 @@ func (u *userServiceImpl) getUsers(ctx context.Context, req *pb.ListUsersRequest
 	// filter
 	rsp := make([]*pb.User, len(users))
 	for i, user := range users {
-		// 	switch {
-		// 	case req.GetCreatedSince() != nil && user.CreatedAt.Before(*req.GetCreatedSince()):
-		// 		continue
-		// 	case req.GetOlderThen() != nil && time.Since(user.CreatedAt) >= *req.GetOlderThen():
-		// 		continue
-		// 	}
 		rsp[i] = user.transform2GRPC()
 	}
 	return rsp, nil
@@ -357,9 +308,6 @@ func (u *userServiceImpl) Login(ctx context.Context, req *pb.LoginRequest) (*pb.
 		if e := utils.CompareHash(user.Password, req.GetPassword()); e != nil {
 			return ErrIncorrectPassword
 		}
-		if !user.Active {
-			return ErrUserNotActive
-		}
 		// gen new token
 		token, e := u.tokenSrv.Generate(&user)
 		if e != nil {
@@ -385,12 +333,6 @@ func (u *userServiceImpl) Login(ctx context.Context, req *pb.LoginRequest) (*pb.
 func (u *userServiceImpl) Logout(ctx context.Context, req *pb.LogoutRequest) (*pb.LogoutResponse, error) {
 	if len(req.GetId()) == 0 {
 		return nil, ErrMissingID
-	}
-	if DefaultCache != nil {
-		if err := DefaultCache.Delete(req.GetId()); err != nil {
-			u.logger.For(ctx).Error("logout_clear", zap.Error(err))
-			return nil, errors.InternalServerError("logout", "clear cache failed")
-		}
 	}
 	return nil, nil
 }
@@ -421,11 +363,7 @@ func (u *userServiceImpl) Validate(ctx context.Context, req *pb.ValidateRequest)
 			u.logger.For(ctx).Error("Get user by ID", zap.Error(e))
 			return errors.InternalServerError("Get user failed", "Lookup user by ID w redis/db failed")
 		}
-		// rsp.User = user.transform2GRPC()
-		rsp.Id = claims.ID
-		rsp.Username = user.Username
-		rsp.Fullname = user.Fullname
-		rsp.Email = user.Email
+		rsp.User = user.transform2GRPC()
 		return nil
 	})
 	if err != nil {

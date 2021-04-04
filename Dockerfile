@@ -24,7 +24,6 @@ COPY --from=builder /etc/passwd /etc/passwd
 WORKDIR /root/
 # Copy our static executable.
 COPY --from=builder /go/bin/myapp .
-COPY --from=builder /myapp/config.yml .
 COPY --from=builder /myapp/service/user/config.yml ./service/user/config.yml
 COPY --from=builder /myapp/service/user/client/config.yml ./service/user/client/config.yml
 
@@ -35,4 +34,4 @@ EXPOSE 8000
 
 # CMD exec /bin/sh -c "trap : TERM INT; (while true; do sleep 1000; done) & wait"
 ENTRYPOINT ["./myapp"]
-CMD [ "grpc-gateway" ]
+CMD [ "moneyforward-go-coding-challenge" ]

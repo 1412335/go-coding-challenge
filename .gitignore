@@ -4,5 +4,7 @@ dist
 vendor
 docker/mysql/data
 docker/redis/data
+docker/postgres/data
+docker/postgres/init
 cert/*.perm
 cert/*.srf

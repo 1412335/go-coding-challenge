@@ -18,26 +18,23 @@ gen-cert:
 # gen stubs
 .PHONY: gen
 gen:
-	@echo "====gen stubs===="
+	@echo "====Gen stubs===="
 	sh ./script/gen-proto.sh
 
 # gen openapi
 .PHONY: gen-openapi
 gen-openapi:
-	@echo "====gen openapi===="
+	@echo "====Gen OpenAPI===="
 	sh ./script/gen-openapi.sh
 
 # 
-.PHONY: grpc
-grpc: clean
-	@echo "====Run grpc server with docker===="
-	# docker-compose up -d mysql
-	# sleep 20s
+.PHONY: run
+run: clean
+	@echo "====Run services===="
 	docker-compose up -d --build
 
 
 # https://github.com/ktr0731/evans
-# Evans cli: calling grpc service (reflection.Register(server))
 .PHONY: cli
 cli:
 	evans -r repl -p 8080
@@ -46,24 +43,22 @@ cli:
 # gofmt
 .PHONY: fmt
 fmt:
-	go fmt -mod=mod $(go list ./... | grep -v /pkg/api/)
+	go fmt -mod=mod ./...
 
 # go-lint
 .PHONY: lint
 lint: fmt
-	golangci-lint run $(go list ./... | grep -v /vendor/)
+	golangci-lint run ./...
 
 # go-lint
 .PHONY: test
 test: lint
-	go test -v $(go list ./... | grep -v /vendor/)
+	go test -v ./...
 
 
 # cleaning
 .PHONY: clean
 clean:
-	@echo "====cleaning env==="
+	@echo "====Cleaning env==="
 	docker-compose down -v --remove-orphans
-	rm -rf ./docker/mysql/data
-	# docker system prune -af --volumes
-	# docker rm $(docker ps -aq -f "status=exited")
+	rm -rf ./docker/postgres/data

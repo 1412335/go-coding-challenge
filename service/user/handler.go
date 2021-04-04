@@ -28,7 +28,7 @@ import (
 	"github.com/1412335/moneyforward-go-coding-challenge/pkg/utils"
 
 	// Static files
-	// _ "github.com/1412335/moneyforward-go-coding-challenge/pkg/api/user/statik"
+	_ "github.com/1412335/moneyforward-go-coding-challenge/pkg/api/user/statik"
 	// requirement for using error details and want to marshal them correctly to JSON.
 	// https://jbrandhorst.com/post/grpc-errors/
 	_ "google.golang.org/genproto/googleapis/rpc/errdetails"
@@ -47,7 +47,7 @@ func NewHandler(config *configs.ServiceConfig) *Handler {
 }
 
 // isPermanentHTTPHeader checks whether hdr belongs to the list of
-// permenant request headers maintained by IANA.
+// permanent request headers maintained by IANA.
 // http://www.iana.org/assignments/message-headers/message-headers.xml
 // From https://github.com/grpc-ecosystem/grpc-gateway/blob/7a2a43655ccd9a488d423ea41a3fc723af103eda/runtime/context.go#L157
 func (h *Handler) isPermanentHTTPHeader(hdr string) bool {
@@ -165,10 +165,6 @@ func (h *Handler) initRouter(handler http.Handler) *gin.Engine {
 		h.logger.Bg().Error("Serve OpenAPI", zap.Error(err))
 	}
 
-	// r.GET("/", func(c *gin.Context) {
-	// 	c.String(http.StatusOK, "Have nice day")
-	// })
-
 	api := r.Group("/api/v1")
 	api.Any("/*any", gin.WrapH(handler))
 
@@ -189,8 +185,6 @@ func serveOpenAPI(r *gin.Engine) error {
 	// fileServer := http.FileServer(statikFS)
 	prefix := "/openapi-ui/"
 	r.StaticFS(prefix, statikFS)
-	// r.GET(prefix, gin.WrapH(http.StripPrefix(prefix, fileServer))) => not working
-	// r.Static("/openui", "pkg/api/v2/grpc-gateway/third_party/OpenAPI")
 	return nil
 }
 
@@ -200,7 +194,7 @@ func (h *Handler) loadClientTLSCredentials() (credentials.TransportCredentials, 
 		return nil, err
 	}
 	// config.ServerName = h.addr
-	// config.InsecureSkipVerify = true
+	config.InsecureSkipVerify = true
 	// Create the credentials and return it
 	return credentials.NewTLS(config), nil
 }
@@ -227,7 +221,7 @@ func (h *Handler) Run() error {
 		// 	Indent:       "  ",
 		// }),
 		// // This is necessary to get error details properly
-		// // marshalled in unary requests.
+		// // marshaled in unary requests.
 		// runtime.WithProtoErrorHandler(runtime.DefaultHTTPProtoErrorHandler),
 	)
 
@@ -279,15 +273,19 @@ func (h *Handler) Run() error {
 	// router
 	router := h.initRouter(mux)
 	// http server
-	tlsConfig, err := h.loadServerTLSCredentials()
-	if err != nil {
-		h.logger.For(ctx).Error("Load http server TLS credentials", zap.Error(err))
-		return err
-	}
 	srv := &http.Server{
-		Addr:      addr,
-		TLSConfig: tlsConfig,
-		Handler:   router,
+		Addr:    addr,
+		Handler: router,
+	}
+
+	// insecure
+	if h.config.EnableTLS && h.config.TLSCert != nil {
+		tlsConfig, err := h.loadServerTLSCredentials()
+		if err != nil {
+			h.logger.For(ctx).Error("Load http server TLS credentials", zap.Error(err))
+			return err
+		}
+		srv.TLSConfig = tlsConfig
 	}
 
 	// graceful shutdown
@@ -303,7 +301,10 @@ func (h *Handler) Run() error {
 		}
 	}()
 
-	h.logger.For(ctx).Info("Serving gRPC-Gateway on", zap.String("addr", "https://"+addr))
-	h.logger.For(ctx).Info("Serving OpenAPI Documentation on", zap.String("addr", "https://"+addr+"/openapi-ui/"))
-	return srv.ListenAndServeTLS("", "")
+	h.logger.For(ctx).Info("Serving gRPC-Gateway on", zap.String("addr", "http://"+addr), zap.String("openapi", "http://"+addr+"/openapi-ui/"))
+	// run gateway
+	if h.config.EnableTLS && h.config.TLSCert != nil {
+		return srv.ListenAndServeTLS("", "")
+	}
+	return srv.ListenAndServe()
 }

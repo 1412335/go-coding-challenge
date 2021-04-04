@@ -1,32 +1,21 @@
-serviceName: "grpc-gateway"
+serviceName: "service.user"
 version: "v1"
 grpc:
-  host: "v1"
+  host: "user-service"
   port: 9090
   max-call-recv-msg-size: 0
   max-call-send-msg-size: 0
-enableTracing: true
-tracing:
-  metrics: "prometheus"
 proxy:
   port: 8000
 jwt:
   secretKey: "lu"
   duration: "1200s"
   issuer: "lu"
-accessibleRoles:
-  - "/api_v1.UserService/List":
-    - admin
-    - root
-  - "/api_v1.UserService/ListStream":
-    - admin
-    - root
-  - "/api_v1.UserService/Delete":
-    - admin
-    - root
-  - "/api_v1.UserService/Update":
-    - admin
-    - root
+# redis:
+#   nodes:
+#     - "host.docker.internal:6379"
+#     - "redis:6379"
+#   prefix: "user-service"
 database:
   host: "postgres"
   port: 5432
@@ -36,31 +25,31 @@ database:
   maxIdleConns: 10
   maxOpenConns: 100
   connectTimeout: "1h"
-  debug: false
-enableTLS: true
+  debug: true
+enableTLS: false
 TLSCert:
   CACert : "./cert/ca-cert.pem"
   CertPem: "./cert/server-cert.pem"
   KeyPem : "./cert/server-key.pem"
-# log:
-#   #PANNIC, FATAL, ERROR, WARN, INFO, DEBUG
-#   mode: "dev"
-#   level: "DEBUG"
-#   # levelTrace: "FATAL"
-#   isLogFile: false
-#   pathLogFile: "./logFile.log"
+log:
+  #PANNIC, FATAL, ERROR, WARN, INFO, DEBUG
+  mode: "dev"
+  level: "DEBUG"
+  levelTrace: "FATAL"
 clientConfig:
-  user:
+  account:
+    serviceName: "service.account"
     version: "v1"
-    serviceName: "localhost:9090"
     grpc: 
-      host: "localhost"
+      host: "account-service"
       port: 9090
-    enableTLS: true
+    enableTLS: false
     TLSCert:
       CACert : "./cert/ca-cert.pem"
-redis:
-  nodes:
-    - "host.docker.internal:6379"
-    # - "redis:6379"
-  prefix: ""
+  transaction:
+    serviceName: "service.transaction"
+    version: "v1"
+    grpc: 
+      host: "transaction-service"
+      port: 9090
+    enableTLS: false

@@ -3,8 +3,6 @@
 ## Install
 ```sh
 make install
-
-go mod vendor
 ```
 
 ## Running
@@ -12,12 +10,12 @@ go mod vendor
 # Gen proto
 make gen
 
-# All
-make grpc
+# Run
+make run
 
 # Cli with evans
 make cli
 ```
 
-## OpenAPI
+## Testing w OpenAPI
 - [http://127.0.0.1:8000/openapi-ui](http://127.0.0.1:8000/openapi-ui)

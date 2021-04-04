@@ -13,10 +13,8 @@ import (
 
 var (
 	// Used for flags.
-	cfgFile        string
-	version        string
-	tracing        bool
-	metricsBackend string
+	cfgFile string
+	version string
 	// service config
 	cfgs *configs.ServiceConfig
 	// log

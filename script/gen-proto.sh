@@ -4,8 +4,8 @@ PROTO_DIR=./api/proto
 OUT_DIR=./pkg/api/user
 
 protoc -I $GOPATH/src \
-    -I ./vendor/github.com/grpc-ecosystem/grpc-gateway/ \
-    -I ./vendor/ \
+    -I vendor/github.com/grpc-ecosystem/grpc-gateway/ \
+    -I vendor/ \
     -I $PROTO_DIR/ \
     --grpc-gateway_out=$OUT_DIR \
     --swagger_out=$OUT_DIR/third_party/OpenAPI/ \
