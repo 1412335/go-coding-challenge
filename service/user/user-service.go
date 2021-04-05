@@ -7,9 +7,6 @@ import (
 
 	"github.com/fatih/structs"
 	"go.uber.org/zap"
-	"google.golang.org/genproto/googleapis/rpc/errdetails"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"gorm.io/gorm"
 
@@ -18,30 +15,8 @@ import (
 	"github.com/1412335/moneyforward-go-coding-challenge/pkg/errors"
 	"github.com/1412335/moneyforward-go-coding-challenge/pkg/log"
 	"github.com/1412335/moneyforward-go-coding-challenge/pkg/utils"
+	errorSrv "github.com/1412335/moneyforward-go-coding-challenge/service/user/error"
 	"github.com/1412335/moneyforward-go-coding-challenge/service/user/model"
-)
-
-var (
-	ErrMissingEmail   = errors.BadRequest("MISSING_EMAIL", map[string]string{"email": "Missing email"})
-	ErrInvalidEmail   = errors.BadRequest("INVALID_EMAIL", map[string]string{"email": "The email provided is invalid"})
-	ErrDuplicateEmail = errors.BadRequest("DUPLICATE_EMAIL", map[string]string{"email": "A user with this email address already exists"})
-
-	ErrInvalidPassword   = errors.BadRequest("INVALID_PASSWORD", map[string]string{"password": "Password must be at least 8 characters long"})
-	ErrIncorrectPassword = errors.Unauthenticated("INCORRECT_PASSWORD", "password", "Email or password is incorrect")
-	ErrHashPassword      = errors.InternalServerError("HASH_PASSWORD", "hash password failed")
-
-	ErrMissingUserID    = errors.BadRequest("MISSING_ID", map[string]string{"id": "Missing user id"})
-	ErrMissingAccountID = errors.BadRequest("MISSING_ACCOUNT_ID", map[string]string{"id": "Missing account id"})
-
-	ErrInvalidTransactionAmount = errors.BadRequest("INVALID_TRANSACTION", map[string]string{"amount": "greater than zero"})
-
-	ErrConnectDB = errors.InternalServerError("CONNECT_DB", "Connecting to database failed")
-
-	ErrUserNotFound = errors.NotFound("NOT_FOUND", map[string]string{"user": "User not found"})
-
-	ErrMissingToken   = errors.BadRequest("MISSING_TOKEN", map[string]string{"token": "Missing token"})
-	ErrTokenGenerated = errors.InternalServerError("TOKEN_GEN_FAILED", "Generate token failed")
-	ErrTokenInvalid   = errors.Unauthenticated("TOKEN_INVALID", "token", "Token invalid")
 )
 
 type userServiceImpl struct {
@@ -66,10 +41,10 @@ func (u *userServiceImpl) getUserByID(ctx context.Context, id int64) (*model.Use
 	err := u.dal.GetDatabase().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// find user by id
 		if e := tx.Where(&model.User{ID: id}).First(user).Error; e == gorm.ErrRecordNotFound {
-			return ErrUserNotFound
+			return errorSrv.ErrUserNotFound
 		} else if e != nil {
 			u.logger.For(ctx).Error("Find user", zap.Error(e))
-			return ErrConnectDB
+			return errorSrv.ErrConnectDB
 		}
 		// // cache
 		// if e := user.cache(); e != nil {
@@ -87,10 +62,10 @@ func (u *userServiceImpl) getUserByID(ctx context.Context, id int64) (*model.Use
 func (u *userServiceImpl) Create(ctx context.Context, req *pb.CreateUserRequest) (*pb.CreateUserResponse, error) {
 	// validate request
 	if !isValidEmail(req.GetEmail()) {
-		return nil, ErrInvalidEmail
+		return nil, errorSrv.ErrInvalidEmail
 	}
 	if !isValidPassword(req.GetPassword()) {
-		return nil, ErrInvalidPassword
+		return nil, errorSrv.ErrInvalidPassword
 	}
 
 	user := &model.User{
@@ -108,17 +83,17 @@ func (u *userServiceImpl) Create(ctx context.Context, req *pb.CreateUserRequest)
 	// create
 	return rsp, u.dal.GetDatabase().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(user).Error; err != nil && strings.Contains(err.Error(), "idx_users_email") {
-			return ErrDuplicateEmail
+			return errorSrv.ErrDuplicateEmail
 		} else if err != nil {
 			u.logger.For(ctx).Error("Error connecting from db", zap.Error(err))
-			return ErrConnectDB
+			return errorSrv.ErrConnectDB
 		}
 
 		// create token
 		token, err := u.tokenSrv.Generate(user)
 		if err != nil {
 			u.logger.For(ctx).Error("Error generate token", zap.Error(err))
-			return ErrTokenGenerated
+			return errorSrv.ErrTokenGenerated
 		}
 
 		rsp.User = user.Transform2GRPC()
@@ -130,14 +105,14 @@ func (u *userServiceImpl) Create(ctx context.Context, req *pb.CreateUserRequest)
 // delete user by id
 func (u *userServiceImpl) Delete(ctx context.Context, req *pb.DeleteUserRequest) (*pb.DeleteUserResponse, error) {
 	if req.GetId() == 0 {
-		return nil, ErrMissingUserID
+		return nil, errorSrv.ErrMissingUserID
 	}
 	err := u.dal.GetDatabase().Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where(req.GetId()).Delete(&model.User{}).Error; err == gorm.ErrRecordNotFound {
-			return ErrUserNotFound
+			return errorSrv.ErrUserNotFound
 		} else if err != nil {
 			u.logger.For(ctx).Error("Error connecting from db", zap.Error(err))
-			return ErrConnectDB
+			return errorSrv.ErrConnectDB
 		}
 		return nil
 	})
@@ -152,7 +127,7 @@ func (u *userServiceImpl) Delete(ctx context.Context, req *pb.DeleteUserRequest)
 // update user by id
 func (u *userServiceImpl) Update(ctx context.Context, req *pb.UpdateUserRequest) (*pb.UpdateUserResponse, error) {
 	if req.GetUser().GetId() == 0 {
-		return nil, ErrMissingUserID
+		return nil, errorSrv.ErrMissingUserID
 	}
 	rsp := &pb.UpdateUserResponse{}
 	err := u.dal.GetDatabase().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
@@ -191,10 +166,10 @@ func (u *userServiceImpl) Update(ctx context.Context, req *pb.UpdateUserRequest)
 		}
 		// check fields valid
 		if !isValidEmail(user.Email) {
-			return ErrInvalidEmail
+			return errorSrv.ErrInvalidEmail
 		}
 		if !isValidPassword(user.Password) {
-			return ErrInvalidPassword
+			return errorSrv.ErrInvalidPassword
 		}
 		if err := user.Validate(); err != nil {
 			u.logger.For(ctx).Error("Error validate user", zap.Error(err))
@@ -202,9 +177,9 @@ func (u *userServiceImpl) Update(ctx context.Context, req *pb.UpdateUserRequest)
 		}
 		// update user in db
 		if e := tx.Save(user).Error; e != nil && strings.Contains(e.Error(), "idx_users_email") {
-			return ErrDuplicateEmail
+			return errorSrv.ErrDuplicateEmail
 		} else if e != nil {
-			return ErrConnectDB
+			return errorSrv.ErrConnectDB
 		}
 		// response
 		rsp.User = user.Transform2GRPC()
@@ -230,24 +205,11 @@ func (u *userServiceImpl) getUsers(ctx context.Context, req *pb.ListUsersRequest
 	// exec
 	if err := psql.Order("created_at desc").Find(&users).Error; err != nil {
 		u.logger.For(ctx).Error("Error find users", zap.Error(err))
-		return nil, ErrConnectDB
+		return nil, errorSrv.ErrConnectDB
 	}
 	// check empty from db
 	if len(users) == 0 {
-		st := status.New(codes.NotFound, "not found users")
-		des, err := st.WithDetails(&errdetails.PreconditionFailure{
-			Violations: []*errdetails.PreconditionFailure_Violation{
-				{
-					Type:        "USER",
-					Subject:     "no users",
-					Description: "no users have been found",
-				},
-			},
-		})
-		if err != nil {
-			return nil, des.Err()
-		}
-		return nil, st.Err()
+		return nil, errorSrv.ErrUserNotFound
 	}
 	// filter
 	rsp := make([]*pb.User, len(users))
@@ -288,13 +250,13 @@ func (u *userServiceImpl) ListStream(req *pb.ListUsersRequest, srv pb.UserServic
 func (u *userServiceImpl) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginResponse, error) {
 	// validate request
 	if len(req.GetEmail()) == 0 {
-		return nil, ErrMissingEmail
+		return nil, errorSrv.ErrMissingEmail
 	}
 	if !isValidEmail(req.GetEmail()) {
-		return nil, ErrInvalidEmail
+		return nil, errorSrv.ErrInvalidEmail
 	}
 	if len(req.GetPassword()) == 0 {
-		return nil, ErrInvalidPassword
+		return nil, errorSrv.ErrInvalidPassword
 	}
 	// response
 	rsp := &pb.LoginResponse{}
@@ -302,20 +264,20 @@ func (u *userServiceImpl) Login(ctx context.Context, req *pb.LoginRequest) (*pb.
 		var user model.User
 		// find user by email
 		if e := tx.Where(&model.User{Email: strings.ToLower(req.GetEmail())}).First(&user).Error; e == gorm.ErrRecordNotFound {
-			return ErrUserNotFound
+			return errorSrv.ErrUserNotFound
 		} else if e != nil {
 			u.logger.For(ctx).Error("Error find user", zap.Error(e))
-			return ErrConnectDB
+			return errorSrv.ErrConnectDB
 		}
 		// verify password
 		if e := utils.CompareHash(user.Password, req.GetPassword()); e != nil {
-			return ErrIncorrectPassword
+			return errorSrv.ErrIncorrectPassword
 		}
 		// gen new token
 		token, e := u.tokenSrv.Generate(&user)
 		if e != nil {
 			u.logger.For(ctx).Error("Error gen token", zap.Error(e))
-			return ErrTokenGenerated
+			return errorSrv.ErrTokenGenerated
 		}
 		// // cache user
 		// if e := user.cache(); e != nil {
@@ -335,7 +297,7 @@ func (u *userServiceImpl) Login(ctx context.Context, req *pb.LoginRequest) (*pb.
 // logout: clear redis cache
 func (u *userServiceImpl) Logout(ctx context.Context, req *pb.LogoutRequest) (*pb.LogoutResponse, error) {
 	if req.GetId() == 0 {
-		return nil, ErrMissingUserID
+		return nil, errorSrv.ErrMissingUserID
 	}
 	return nil, nil
 }
@@ -343,7 +305,7 @@ func (u *userServiceImpl) Logout(ctx context.Context, req *pb.LogoutRequest) (*p
 // validate token: update isActive=true & return user
 func (u *userServiceImpl) Validate(ctx context.Context, req *pb.ValidateRequest) (*pb.ValidateResponse, error) {
 	if len(req.GetToken()) == 0 {
-		return nil, ErrMissingToken
+		return nil, errorSrv.ErrMissingToken
 	}
 	rsp := &pb.ValidateResponse{}
 	err := u.dal.GetDatabase().Transaction(func(tx *gorm.DB) error {
@@ -351,20 +313,13 @@ func (u *userServiceImpl) Validate(ctx context.Context, req *pb.ValidateRequest)
 		claims, e := u.tokenSrv.Verify(req.Token)
 		if e != nil {
 			u.logger.For(ctx).Error("verify token failed", zap.Error(e))
-			return ErrTokenInvalid
-		}
-		// update active
-		if e = tx.Model(&model.User{ID: claims.ID}).Update("active", true).Error; e == gorm.ErrRecordNotFound {
-			return ErrUserNotFound
-		} else if e != nil {
-			u.logger.For(ctx).Error("Error update user", zap.Error(e))
-			return ErrConnectDB
+			return errorSrv.ErrTokenInvalid
 		}
 		// get cache user
 		user, e := u.getUserByID(ctx, claims.ID)
 		if e != nil {
 			u.logger.For(ctx).Error("Get user by ID", zap.Error(e))
-			return errors.InternalServerError("Get user failed", "Lookup user by ID w redis/db failed")
+			return errors.InternalServerError("Get user failed", "Lookup user by id failed")
 		}
 		rsp.User = user.Transform2GRPC()
 		return nil
@@ -379,7 +334,7 @@ func (u *userServiceImpl) Validate(ctx context.Context, req *pb.ValidateRequest)
 func (u *userServiceImpl) CreateAccount(ctx context.Context, req *pb.CreateAccountRequest) (*pb.CreateAccountResponse, error) {
 	// validate request
 	if req.GetUserId() == 0 {
-		return nil, ErrMissingUserID
+		return nil, errorSrv.ErrMissingUserID
 	}
 
 	// response
@@ -388,10 +343,10 @@ func (u *userServiceImpl) CreateAccount(ctx context.Context, req *pb.CreateAccou
 		var user model.User
 		// find user by id
 		if e := tx.Where(&model.User{ID: req.GetUserId()}).First(&user).Error; e == gorm.ErrRecordNotFound {
-			return ErrUserNotFound
+			return errorSrv.ErrUserNotFound
 		} else if e != nil {
 			u.logger.For(ctx).Error("Error find user by id", zap.Error(e))
-			return ErrConnectDB
+			return errorSrv.ErrConnectDB
 		}
 
 		// create account
@@ -407,7 +362,7 @@ func (u *userServiceImpl) CreateAccount(ctx context.Context, req *pb.CreateAccou
 		}
 		if err := tx.Create(acc).Error; err != nil {
 			u.logger.For(ctx).Error("Error create account", zap.Error(err))
-			return ErrConnectDB
+			return errorSrv.ErrConnectDB
 		}
 		//
 		rsp.Account = acc.Transform2GRPC()
@@ -423,16 +378,16 @@ func (u *userServiceImpl) CreateAccount(ctx context.Context, req *pb.CreateAccou
 func (u *userServiceImpl) ListAccounts(ctx context.Context, req *pb.ListAccountsRequest) (*pb.ListAccountsResponse, error) {
 	// validate request
 	if req.GetUserId() == nil {
-		return nil, ErrMissingUserID
+		return nil, errorSrv.ErrMissingUserID
 	}
 
 	var user model.User
 	// lookup user by id
-	if e := u.dal.GetDatabase().Where(&model.User{ID: req.GetUserId().Value}).Preload("accounts").First(&user).Error; e == gorm.ErrRecordNotFound {
-		return nil, ErrUserNotFound
+	if e := u.dal.GetDatabase().Where(&model.User{ID: req.GetUserId().Value}).Preload("Accounts").First(&user).Error; e == gorm.ErrRecordNotFound {
+		return nil, errorSrv.ErrUserNotFound
 	} else if e != nil {
 		u.logger.For(ctx).Error("Error find user by id", zap.Error(e))
-		return nil, ErrConnectDB
+		return nil, errorSrv.ErrConnectDB
 	}
 	rsp := &pb.ListAccountsResponse{}
 	// fetch accounts belong to the user
@@ -443,17 +398,17 @@ func (u *userServiceImpl) ListAccounts(ctx context.Context, req *pb.ListAccounts
 	return rsp, nil
 }
 
-// transactions
+// CreateTransaction
 func (u *userServiceImpl) CreateTransaction(ctx context.Context, req *pb.CreateTransactionRequest) (*pb.CreateTransactionResponse, error) {
 	// validate request
 	if req.GetUserId() == 0 {
-		return nil, ErrMissingUserID
+		return nil, errorSrv.ErrMissingUserID
 	}
 	if req.GetAccountId() == 0 {
-		return nil, ErrMissingAccountID
+		return nil, errorSrv.ErrMissingAccountID
 	}
 	if req.GetAmount() <= 0 {
-		return nil, ErrInvalidTransactionAmount
+		return nil, errorSrv.ErrInvalidTransactionAmount
 	}
 
 	// response
@@ -462,10 +417,10 @@ func (u *userServiceImpl) CreateTransaction(ctx context.Context, req *pb.CreateT
 		var acc model.Account
 		// find account by userId + accId
 		if e := tx.Where(&model.Account{ID: req.GetAccountId(), UserID: req.GetUserId()}).First(&acc).Error; e == gorm.ErrRecordNotFound {
-			return ErrUserNotFound
+			return errorSrv.ErrUserNotFound
 		} else if e != nil {
 			u.logger.For(ctx).Error("Error find user by id", zap.Error(e))
-			return ErrConnectDB
+			return errorSrv.ErrConnectDB
 		}
 
 		// // check account balance w withdraw transaction
@@ -477,7 +432,7 @@ func (u *userServiceImpl) CreateTransaction(ctx context.Context, req *pb.CreateT
 		case pb.TransactionType_WITHDRAW:
 			acc.Balance -= req.GetAmount()
 			if acc.Balance < 0 {
-				return ErrInvalidTransactionAmount
+				return errorSrv.ErrInvalidTransactionAmount
 			}
 		case pb.TransactionType_DEPOSIT:
 			acc.Balance += req.GetAmount()
@@ -495,13 +450,13 @@ func (u *userServiceImpl) CreateTransaction(ctx context.Context, req *pb.CreateT
 		}
 		if err := tx.Create(trans).Error; err != nil {
 			u.logger.For(ctx).Error("Error create transaction", zap.Error(err))
-			return ErrConnectDB
+			return errorSrv.ErrConnectDB
 		}
 
 		// update account
 		if e := tx.Save(acc).Error; e != nil {
 			u.logger.For(ctx).Error("Error update account balance", zap.Error(e))
-			return ErrConnectDB
+			return errorSrv.ErrConnectDB
 		}
 
 		// response
@@ -513,54 +468,48 @@ func (u *userServiceImpl) CreateTransaction(ctx context.Context, req *pb.CreateT
 	}
 	return rsp, err
 }
+
+// ListTransactions
 func (u *userServiceImpl) ListTransactions(ctx context.Context, req *pb.ListTransactionsRequest) (*pb.ListTransactionsResponse, error) {
 	// validate request
 	if req.GetUserId() == 0 {
-		return nil, ErrMissingUserID
+		return nil, errorSrv.ErrMissingUserID
 	}
 
-	// response
+	// build query
+	q := u.dal.GetDatabase().Where(&model.Account{UserID: req.GetUserId()})
+	if req.GetAccountId() != 0 {
+		q = q.Where("id = ?", req.GetAccountId())
+	}
+
+	// lookup acc & its transactions
+	var accs []model.Account
+	if e := q.Preload("Transactions").Find(&accs).Error; e == gorm.ErrRecordNotFound {
+		return nil, errorSrv.ErrUserNotFound
+	} else if e != nil {
+		u.logger.For(ctx).Error("Error find user by id", zap.Error(e))
+		return nil, errorSrv.ErrConnectDB
+	}
+
+	// get all transactions
 	rsp := &pb.ListTransactionsResponse{}
-	err := u.dal.GetDatabase().Transaction(func(tx *gorm.DB) error {
-		var accs []model.Account
-
-		// build query
-		q := tx.Where(&model.Account{UserID: req.GetUserId()})
-		if req.GetAccountId() != 0 {
-			q = q.Where("account_id = ?", req.GetAccountId())
-		}
-
-		// lookup acc & its transactions
-		if e := q.Preload("transactions").Find(&accs).Error; e == gorm.ErrRecordNotFound {
-			return ErrUserNotFound
-		} else if e != nil {
-			u.logger.For(ctx).Error("Error find user by id", zap.Error(e))
-			return ErrConnectDB
-		}
-
-		// get all transactions
-		rsp.Transactions = []*pb.ListTransactionsResponse_Result{}
-		for _, acc := range accs {
-			for _, trans := range acc.Transactions {
-				pbTrans := &pb.ListTransactionsResponse_Result{
-					Id:        trans.ID,
-					AccountId: trans.AccountID,
-					Amount:    trans.Amount,
-					CreatedAt: timestamppb.New(trans.CreatedAt),
-				}
-				if b, ok := pb.TransactionType_value[acc.Bank]; ok {
-					pbTrans.Bank = pb.Bank(b)
-				}
-				if t, ok := pb.TransactionType_value[trans.TransactionType]; ok {
-					pbTrans.TransactionType = pb.TransactionType(t)
-				}
-				rsp.Transactions = append(rsp.Transactions, pbTrans)
+	rsp.Transactions = []*pb.ListTransactionsResponse_Result{}
+	for _, acc := range accs {
+		for _, trans := range acc.Transactions {
+			pbTrans := &pb.ListTransactionsResponse_Result{
+				Id:        trans.ID,
+				AccountId: trans.AccountID,
+				Amount:    trans.Amount,
+				CreatedAt: timestamppb.New(trans.CreatedAt),
 			}
+			if b, ok := pb.TransactionType_value[acc.Bank]; ok {
+				pbTrans.Bank = pb.Bank(b)
+			}
+			if t, ok := pb.TransactionType_value[trans.TransactionType]; ok {
+				pbTrans.TransactionType = pb.TransactionType(t)
+			}
+			rsp.Transactions = append(rsp.Transactions, pbTrans)
 		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
 	}
-	return rsp, err
+	return rsp, nil
 }

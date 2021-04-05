@@ -449,6 +449,12 @@
             "schema": {
               "$ref": "#/definitions/userCreateAccountRequest"
             }
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string"
           }
         ],
         "tags": [

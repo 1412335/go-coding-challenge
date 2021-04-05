@@ -6,6 +6,7 @@ import (
 	"github.com/1412335/moneyforward-go-coding-challenge/pkg/log"
 	"github.com/1412335/moneyforward-go-coding-challenge/service/user"
 	"github.com/1412335/moneyforward-go-coding-challenge/service/user/client"
+	"github.com/1412335/moneyforward-go-coding-challenge/service/user/handler"
 
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
@@ -48,7 +49,7 @@ func userService() error {
 	}()
 
 	// run grpc-gateway
-	handler := user.NewHandler(cfgs)
+	handler := handler.NewHandler(cfgs)
 	err := handler.Run()
 	if err != nil {
 		zapLogger.Error("Starting gRPC-gateway error", zap.Error(err))

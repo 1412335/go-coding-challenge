@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
-	"google.golang.org/grpc"
+	"google.golang.org/grpc/status"
 )
 
 type errorBody struct {
@@ -16,9 +16,9 @@ type errorBody struct {
 func CustomHTTPError(ctx context.Context, _ *runtime.ServeMux, marshaler runtime.Marshaler, w http.ResponseWriter, _ *http.Request, err error) {
 	const fallback = `{"error": "failed to marshal error message"}`
 	w.Header().Set("Content-type", marshaler.ContentType())
-	w.WriteHeader(runtime.HTTPStatusFromCode(grpc.Code(err)))
+	w.WriteHeader(runtime.HTTPStatusFromCode(status.Code(err)))
 	jErr := json.NewEncoder(w).Encode(errorBody{
-		Err: grpc.ErrorDesc(err),
+		Err: status.Convert(err).Message(),
 	})
 	if jErr != nil {
 		w.Write([]byte(fallback))

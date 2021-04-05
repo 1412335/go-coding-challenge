@@ -30,20 +30,41 @@ CREATE TABLE "public"."users" (
 );
 
 -- Records of users
-INSERT INTO "public"."users" (email, password)
-VALUES ('abc@gmail.com', '$2a$10$Ir83oelk9psNRBosHTgICe2Woe5FMXNbRLBQSS/Jwq.T9i5Gcvlgu');
+INSERT INTO "public"."users" (id, email, password)
+VALUES (1, 'abc@gmail.com', '$2a$10$Ir83oelk9psNRBosHTgICe2Woe5FMXNbRLBQSS/Jwq.T9i5Gcvlgu');
 
 
--- -- Create table for accounts
--- CREATE TABLE "public"."accounts" (
---     id  varchar(50)  NOT NULL,
---     created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
---     updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
---     PRIMARY KEY (id)
--- );
+-- Create table for accounts
+DROP TABLE IF EXISTS "public"."accounts";
+CREATE TABLE "public"."accounts" (
+    id  bigint NOT NULL DEFAULT next_id(),
+    user_id bigint NOT NULL,
+    name varchar(255),
+    bank varchar(10),
+    balance numeric NOT NULL DEFAULT 0,
+    created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
+);
 
--- -- Insert sample promotion data
--- insert into promotion (id, , validfrom, validthru, customerid)
--- VALUES ('Promo1', 'Promo1 Desc', TIMESTAMP '2000-01-01 00:00:00', TIMESTAMP '2200-01-01 00:00:00','ducksrus'),
---        ('Promo2', 'Promo2 Desc', TIMESTAMP '2000-01-01 00:00:00', TIMESTAMP '2200-01-01 00:00:00','patoloco'),
---        ('Promo3', 'Promo3 Desc', TIMESTAMP '2000-01-01 00:00:00', TIMESTAMP '2200-01-01 00:00:00','ducksrus')
+-- Insert sample account data
+insert into "public"."accounts" (id, user_id, name, bank, balance)
+VALUES (1, 1, '1.VIB', 'VIB', 1000000);
+
+
+-- Create table for accounts
+DROP TABLE IF EXISTS "public"."transactions";
+CREATE TABLE "public"."transactions" (
+    id  bigint NOT NULL DEFAULT next_id(),
+    account_id bigint NOT NULL,
+    transaction_type varchar(10),
+    amount numeric NOT NULL DEFAULT 0,
+    created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
+);
+
+-- Insert sample account data
+insert into "public"."transactions" (id, account_id, transaction_type, amount)
+VALUES (1, 1, 'DEPOSIT', 1000000),
+        (2, 1, 'WITHDRAW', 100000);
