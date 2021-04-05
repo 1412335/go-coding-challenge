@@ -41,7 +41,7 @@ func (a *AuthServerInterceptor) Stream() grpc.StreamServerInterceptor {
 }
 
 // check accessiable method with user role got from header authorization
-func (a *AuthServerInterceptor) authorize(ctx context.Context, method string, req interface{}) error {
+func (a *AuthServerInterceptor) authorize(ctx context.Context, method string) error {
 	// check accessiable method with user role got from header authorization
 	authReq, ok := a.authRequiredMethods[method]
 	if !authReq || !ok {
@@ -81,7 +81,7 @@ func (a *AuthServerInterceptor) UnaryInterceptor(ctx context.Context, req interf
 	a.Log().For(ctx).Info("unary req", zap.String("method", info.FullMethod))
 
 	// authorize request
-	err = a.authorize(ctx, info.FullMethod, req)
+	err = a.authorize(ctx, info.FullMethod)
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +100,7 @@ func (a *AuthServerInterceptor) StreamInterceptor(srv interface{}, ss grpc.Serve
 	a.Log().For(ss.Context()).Info("stream req", zap.String("method", info.FullMethod), zap.Any("serverStream", info.IsServerStream))
 
 	// authorize request
-	err = a.authorize(ss.Context(), info.FullMethod, nil)
+	err = a.authorize(ss.Context(), info.FullMethod)
 	if err != nil {
 		return err
 	}

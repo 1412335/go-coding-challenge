@@ -6,6 +6,7 @@ import (
 	"github.com/1412335/moneyforward-go-coding-challenge/pkg/configs"
 	"github.com/1412335/moneyforward-go-coding-challenge/pkg/log"
 	"github.com/1412335/moneyforward-go-coding-challenge/pkg/utils"
+	"github.com/1412335/moneyforward-go-coding-challenge/service/user/model"
 	"go.uber.org/zap"
 
 	"github.com/dgrijalva/jwt-go"
@@ -29,7 +30,7 @@ func NewTokenService(config *configs.JWT) *TokenService {
 	}
 }
 
-func (t *TokenService) Generate(user *User) (string, error) {
+func (t *TokenService) Generate(user *model.User) (string, error) {
 	claims := Claims{
 		StandardClaims: t.jwtManager.GetStandardClaims(),
 		ID:             user.ID,

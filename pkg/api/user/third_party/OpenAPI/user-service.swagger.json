@@ -345,6 +345,7 @@
     },
     "/api/v1/users/{user_id}/accounts": {
       "get": {
+        "summary": "list user accounts",
         "operationId": "UserService_ListAccounts",
         "responses": {
           "200": {
@@ -373,6 +374,13 @@
             "in": "query",
             "required": false,
             "type": "string"
+          },
+          {
+            "name": "balance",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
           }
         ],
         "tags": [
@@ -380,7 +388,7 @@
         ]
       },
       "post": {
-        "summary": "accounts",
+        "summary": "create user account",
         "operationId": "UserService_CreateAccount",
         "responses": {
           "200": {
@@ -420,6 +428,7 @@
     },
     "/api/v1/users/{user_id}/transactions": {
       "get": {
+        "summary": "list user transactions",
         "operationId": "UserService_ListTransactions",
         "responses": {
           "200": {
@@ -456,7 +465,7 @@
         ]
       },
       "post": {
-        "summary": "transactions",
+        "summary": "create user transaction",
         "operationId": "UserService_CreateTransaction",
         "responses": {
           "200": {
@@ -512,7 +521,7 @@
           "format": "double"
         },
         "bank": {
-          "type": "string"
+          "$ref": "#/definitions/userBank"
         },
         "transaction_type": {
           "$ref": "#/definitions/userTransactionType"
@@ -615,6 +624,10 @@
           "type": "string",
           "format": "int64"
         },
+        "balance": {
+          "type": "number",
+          "format": "double"
+        },
         "created_at": {
           "type": "string",
           "format": "date-time"
@@ -646,6 +659,10 @@
         },
         "bank": {
           "$ref": "#/definitions/userBank"
+        },
+        "balance": {
+          "type": "number",
+          "format": "double"
         }
       }
     },

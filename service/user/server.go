@@ -8,6 +8,7 @@ import (
 	"github.com/1412335/moneyforward-go-coding-challenge/pkg/dal/postgres"
 	"github.com/1412335/moneyforward-go-coding-challenge/pkg/log"
 	"github.com/1412335/moneyforward-go-coding-challenge/pkg/server"
+	"github.com/1412335/moneyforward-go-coding-challenge/service/user/model"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
@@ -27,7 +28,9 @@ func NewServer(srvConfig *configs.ServiceConfig, opt ...server.Option) *Server {
 	}
 	// migrate db
 	if err := dal.GetDatabase().AutoMigrate(
-		&User{},
+		&model.User{},
+		&model.Account{},
+		&model.Transaction{},
 	); err != nil {
 		log.Error("migrate db failed", zap.Error(err))
 		return nil

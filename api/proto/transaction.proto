@@ -5,6 +5,9 @@ package user;
 // import "google/protobuf/wrappers.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/field_mask.proto";
+// import "google/api/field_behavior.proto";
+
+import "account.proto";
 
 option go_package = "./;user";
 
@@ -44,7 +47,7 @@ message ListTransactionsResponse {
         int64 id = 1;
         int64 account_id = 2;
         double amount = 3;
-        string bank = 4;
+        Bank bank = 4;
         TransactionType transaction_type = 5;
         google.protobuf.Timestamp created_at = 10;
     }

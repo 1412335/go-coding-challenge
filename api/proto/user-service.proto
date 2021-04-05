@@ -63,26 +63,28 @@ service UserService {
         };
     };
 
-    // accounts
+    // create user account
     rpc CreateAccount(CreateAccountRequest) returns (CreateAccountResponse) {
         option (google.api.http) = {
             post: "/api/v1/users/{user_id}/accounts"
             body: "*"
         };
     };
+    // list user accounts
     rpc ListAccounts(ListAccountsRequest) returns (ListAccountsResponse) {
         option (google.api.http) = {
             get: "/api/v1/users/{user_id}/accounts"
         };
     };
 
-    // transactions
+    // create user transaction
     rpc CreateTransaction(CreateTransactionRequest) returns (CreateTransactionResponse) {
         option (google.api.http) = {
             post: "/api/v1/users/{user_id}/transactions"
             body: "*"
         };
     };
+    // list user transactions
     rpc ListTransactions(ListTransactionsRequest) returns (ListTransactionsResponse) {
         option (google.api.http) = {
             get: "/api/v1/users/{user_id}/transactions"
@@ -120,8 +122,8 @@ message User {
 }
 
 message CreateUserRequest {
-	string email = 3;
-	string password = 4;
+	string email = 1;
+	string password = 2;
 }
 
 message CreateUserResponse {

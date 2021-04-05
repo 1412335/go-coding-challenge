@@ -19,6 +19,7 @@ message Account {
     string name = 2;
     Bank bank = 3;
     int64 user_id = 4;
+    double balance = 5;
     google.protobuf.Timestamp created_at = 10;
     google.protobuf.Timestamp updated_at = 11;
 }
@@ -27,6 +28,7 @@ message CreateAccountRequest {
     int64 user_id = 1;
 	string name = 2;
     Bank bank = 3;
+    double balance = 4;
 }
 
 message CreateAccountResponse {
@@ -36,6 +38,7 @@ message CreateAccountResponse {
 message ListAccountsRequest {
     google.protobuf.Int64Value user_id = 1 ;
 	google.protobuf.StringValue name = 2;
+    google.protobuf.DoubleValue balance = 3;
 }
 
 message ListAccountsResponse {

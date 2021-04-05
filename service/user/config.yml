@@ -18,8 +18,12 @@ authRequiredMethods:
   - "/user.UserService/Update": true
   - "/user.UserService/CreateAccount": true
   - "/user.UserService/ListAccounts": true
+  - "/user.UserService/UpdateAccount": true
+  - "/user.UserService/DeleteAccount": true
   - "/user.UserService/CreateTransaction": true
   - "/user.UserService/ListTransactions": true
+  - "/user.UserService/UpdateTransaction": true
+  - "/user.UserService/DeleteTransaction": true
 # redis:
 #   nodes:
 #     - "host.docker.internal:6379"
