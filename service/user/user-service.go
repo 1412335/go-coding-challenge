@@ -7,6 +7,8 @@ import (
 
 	"github.com/fatih/structs"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"gorm.io/gorm"
 
@@ -371,7 +373,10 @@ func (u *userServiceImpl) CreateAccount(ctx context.Context, req *pb.CreateAccou
 	if err != nil {
 		return nil, err
 	}
-	return rsp, err
+	// set header in your handler
+	md := metadata.Pairs("X-Http-Code", "201")
+	grpc.SetHeader(ctx, md)
+	return rsp, nil
 }
 
 // ListAccounts
@@ -408,7 +413,7 @@ func (u *userServiceImpl) CreateTransaction(ctx context.Context, req *pb.CreateT
 		return nil, errorSrv.ErrMissingAccountID
 	}
 	if req.GetAmount() <= 0 {
-		return nil, errorSrv.ErrInvalidTransactionAmount
+		return nil, errorSrv.ErrInvalidTransactionAmountGT0
 	}
 
 	// response
@@ -432,7 +437,7 @@ func (u *userServiceImpl) CreateTransaction(ctx context.Context, req *pb.CreateT
 		case pb.TransactionType_WITHDRAW:
 			acc.Balance -= req.GetAmount()
 			if acc.Balance < 0 {
-				return errorSrv.ErrInvalidTransactionAmount
+				return errorSrv.ErrInvalidWithdrawTransactionAmount
 			}
 		case pb.TransactionType_DEPOSIT:
 			acc.Balance += req.GetAmount()
@@ -454,7 +459,7 @@ func (u *userServiceImpl) CreateTransaction(ctx context.Context, req *pb.CreateT
 		}
 
 		// update account
-		if e := tx.Save(acc).Error; e != nil {
+		if e := tx.Save(&acc).Error; e != nil {
 			u.logger.For(ctx).Error("Error update account balance", zap.Error(e))
 			return errorSrv.ErrConnectDB
 		}
@@ -466,7 +471,11 @@ func (u *userServiceImpl) CreateTransaction(ctx context.Context, req *pb.CreateT
 	if err != nil {
 		return nil, err
 	}
-	return rsp, err
+
+	// set header in your handler
+	md := metadata.Pairs("X-Http-Code", "201")
+	grpc.SetHeader(ctx, md)
+	return rsp, nil
 }
 
 // ListTransactions

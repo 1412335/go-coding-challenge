@@ -54,15 +54,18 @@ func (t *Transaction) Validate() error {
 	// sanitize fileds
 	t.sanitize()
 	// validate
-	errs, ok := validator.Validate(t).(validator.ErrorMap)
-	if !ok {
-		return errors.BadRequest("validate failed", map[string]string{"errors": errs.Error()})
+	if e := validator.Validate(t); e != nil {
+		errs, ok := e.(validator.ErrorMap)
+		if !ok {
+			return errors.BadRequest("validate failed", map[string]string{"error": errs.Error()})
+		}
+		fields := make(map[string]string, len(errs))
+		for field, err := range errs {
+			fields[field] = err[0].Error()
+		}
+		return errors.BadRequest("validate failed", fields)
 	}
-	fields := make(map[string]string, len(errs))
-	for field, err := range errs {
-		fields[field] = err[0].Error()
-	}
-	return errors.BadRequest("validate failed", fields)
+	return nil
 }
 
 func (t *Transaction) BeforeCreate(tx *gorm.DB) error {

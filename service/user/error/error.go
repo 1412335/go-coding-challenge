@@ -14,11 +14,13 @@ var (
 	ErrMissingUserID    = errors.BadRequest("Missing user id", map[string]string{"id": "Missing user id"})
 	ErrMissingAccountID = errors.BadRequest("Missing account id", map[string]string{"id": "Missing account id"})
 
-	ErrInvalidTransactionAmount = errors.BadRequest("Invalid transaction amount", map[string]string{"amount": "greater than zero"})
+	ErrInvalidTransactionAmountGT0      = errors.BadRequest("Invalid transaction amount (>0)", map[string]string{"amount": "greater than zero"})
+	ErrInvalidWithdrawTransactionAmount = errors.BadRequest("Invalid withdraw transaction amount (<= account balance)", map[string]string{"amount": "less than or equal account balance"})
 
 	ErrConnectDB = errors.InternalServerError("Connect db failed", "Connecting to database failed")
 
-	ErrUserNotFound = errors.NotFound("Not found user", map[string]string{"user": "User not found"})
+	ErrUserNotFound    = errors.NotFound("Not found user", map[string]string{"user": "User not found"})
+	ErrAccountNotFound = errors.NotFound("Not found user account", map[string]string{"account": "Account not found"})
 
 	ErrMissingToken   = errors.BadRequest("Token missing", map[string]string{"token": "Missing token"})
 	ErrTokenGenerated = errors.InternalServerError("Token gen failed", "Generate token failed")

@@ -61,15 +61,19 @@ func (a *Account) Validate() error {
 	// sanitize fileds
 	a.sanitize()
 	// validate
-	errs, ok := validator.Validate(a).(validator.ErrorMap)
-	if !ok {
-		return errors.BadRequest("validate failed", map[string]string{"errors": errs.Error()})
+	e := validator.Validate(a)
+	if e != nil {
+		errs, ok := e.(validator.ErrorMap)
+		if !ok {
+			return errors.BadRequest("validate failed", map[string]string{"error": errs.Error()})
+		}
+		fields := make(map[string]string, len(errs))
+		for field, err := range errs {
+			fields[field] = err[0].Error()
+		}
+		return errors.BadRequest("validate failed", fields)
 	}
-	fields := make(map[string]string, len(errs))
-	for field, err := range errs {
-		fields[field] = err[0].Error()
-	}
-	return errors.BadRequest("validate failed", fields)
+	return nil
 }
 
 func (a *Account) BeforeCreate(tx *gorm.DB) error {

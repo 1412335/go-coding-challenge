@@ -104,7 +104,7 @@ func (a *AuthServerInterceptor) UnaryInterceptor(ctx context.Context, req interf
 	defer func() {
 		if r := recover(); r != nil {
 			a.Log().For(ctx).Error("unary req", zap.Any("panic", r))
-			err = status.Error(codes.Unknown, "server error")
+			err = status.Error(codes.Unknown, "Internal server error")
 		}
 	}()
 	a.Log().For(ctx).Info("unary req", zap.String("method", info.FullMethod))
@@ -123,7 +123,7 @@ func (a *AuthServerInterceptor) StreamInterceptor(srv interface{}, ss grpc.Serve
 	defer func() {
 		if r := recover(); r != nil {
 			a.Log().For(ss.Context()).Error("stream req", zap.Any("panic", r))
-			err = status.Error(codes.Unknown, "server error")
+			err = status.Error(codes.Unknown, "Internal server error")
 		}
 	}()
 	a.Log().For(ss.Context()).Info("stream req", zap.String("method", info.FullMethod), zap.Any("serverStream", info.IsServerStream))
