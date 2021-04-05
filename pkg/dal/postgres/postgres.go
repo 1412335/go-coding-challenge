@@ -33,9 +33,9 @@ func NewDataAccessLayer(ctx context.Context, cfg *configs.Database) (*DataAccess
 }
 
 // Build connection string
-func (dal *DataAccessLayer) buildConnectionDSN() (string, error) {
+func (dal *DataAccessLayer) buildConnectionDSN() string {
 	cfg := dal.dbConfig
-	return fmt.Sprintf("host=%s port=%v user=%s dbname=%s sslmode=disable password=%s", cfg.Host, cfg.Port, cfg.User, cfg.Scheme, cfg.Password), nil
+	return fmt.Sprintf("host=%s port=%v user=%s dbname=%s sslmode=disable password=%s", cfg.Host, cfg.Port, cfg.User, cfg.Scheme, cfg.Password)
 }
 
 // Connect
@@ -44,11 +44,7 @@ func (dal *DataAccessLayer) Connect(ctx context.Context) (*gorm.DB, error) {
 	var err error
 	once.Do(func() {
 		// build connection string
-		dsn, e := dal.buildConnectionDSN()
-		if e != nil {
-			err = e
-			return
-		}
+		dsn := dal.buildConnectionDSN()
 		// connect db
 		db, e := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 		if e != nil {
@@ -56,6 +52,7 @@ func (dal *DataAccessLayer) Connect(ctx context.Context) (*gorm.DB, error) {
 			return
 		}
 
+		// debug
 		if dal.dbConfig.Debug {
 			db = db.Debug()
 		}

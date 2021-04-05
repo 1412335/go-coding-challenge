@@ -16,14 +16,16 @@ import (
 
 // Auth interceptor with JWT
 type AuthServerInterceptor struct {
-	jwtManager *TokenService
+	jwtManager          *TokenService
+	authRequiredMethods map[string]bool
 }
 
 var _ interceptor.ServerInterceptor = (*AuthServerInterceptor)(nil)
 
-func NewAuthServerInterceptor(jwtManager *TokenService) interceptor.ServerInterceptor {
+func NewAuthServerInterceptor(jwtManager *TokenService, authRequiredMethods map[string]bool) interceptor.ServerInterceptor {
 	return &AuthServerInterceptor{
-		jwtManager: jwtManager,
+		jwtManager:          jwtManager,
+		authRequiredMethods: authRequiredMethods,
 	}
 }
 
@@ -40,6 +42,12 @@ func (a *AuthServerInterceptor) Stream() grpc.StreamServerInterceptor {
 
 // check accessiable method with user role got from header authorization
 func (a *AuthServerInterceptor) authorize(ctx context.Context, method string, req interface{}) error {
+	// check accessiable method with user role got from header authorization
+	authReq, ok := a.authRequiredMethods[method]
+	if !authReq || !ok {
+		return nil
+	}
+
 	// fetch authorization header
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {

@@ -40,7 +40,7 @@ func NewServer(srvConfig *configs.ServiceConfig, opt ...server.Option) *Server {
 	}
 
 	// auth server interceptor
-	authInterceptor := NewAuthServerInterceptor(srv.tokenSrv)
+	authInterceptor := NewAuthServerInterceptor(srv.tokenSrv, srvConfig.AuthRequiredMethods)
 
 	// append server options with logger + auth token interceptor
 	opt = append(opt,

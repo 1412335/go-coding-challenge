@@ -19,7 +19,7 @@ type Client interface {
 	Close() error
 }
 
-type ClientImpl struct {
+type clientImpl struct {
 	ctx           context.Context
 	logger        log.Factory
 	client        *grpcClient.Client
@@ -36,7 +36,7 @@ func New(cfgs *configs.ClientConfig, opt ...grpcClient.Option) (Client, error) {
 	}
 
 	ctx := context.Background()
-	return &ClientImpl{
+	return &clientImpl{
 		ctx:           ctx,
 		logger:        client.GetLogger(),
 		client:        client,
@@ -44,18 +44,18 @@ func New(cfgs *configs.ClientConfig, opt ...grpcClient.Option) (Client, error) {
 	}, nil
 }
 
-func (c *ClientImpl) Close() error {
+func (c *clientImpl) Close() error {
 	return c.client.Close()
 }
 
-func (c *ClientImpl) setHeader(m map[string]string) context.Context {
+func (c *clientImpl) setHeader(m map[string]string) context.Context {
 	md := metadata.New(m)
 	ctx := metadata.NewOutgoingContext(c.ctx, md)
 	return ctx
 }
 
 // login & get token
-func (c *ClientImpl) Login(email, password string) (string, error) {
+func (c *clientImpl) Login(email, password string) (string, error) {
 	ctx := c.setHeader(map[string]string{"custom-req-header": "login"})
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()

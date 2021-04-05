@@ -11,9 +11,9 @@ import (
 	"github.com/dgrijalva/jwt-go"
 )
 
-type UserClaims struct {
+type Claims struct {
 	jwt.StandardClaims
-	ID    string `json:"id"`
+	ID    int64  `json:"id"`
 	Email string `json:"email"`
 }
 
@@ -30,7 +30,7 @@ func NewTokenService(config *configs.JWT) *TokenService {
 }
 
 func (t *TokenService) Generate(user *User) (string, error) {
-	claims := UserClaims{
+	claims := Claims{
 		StandardClaims: t.jwtManager.GetStandardClaims(),
 		ID:             user.ID,
 		Email:          user.Email,
@@ -38,13 +38,13 @@ func (t *TokenService) Generate(user *User) (string, error) {
 	return t.jwtManager.Generate(claims)
 }
 
-func (t *TokenService) Verify(accessToken string) (*UserClaims, error) {
-	claims, err := t.jwtManager.Verify(accessToken, &UserClaims{})
+func (t *TokenService) Verify(accessToken string) (*Claims, error) {
+	claims, err := t.jwtManager.Verify(accessToken, &Claims{})
 	if err != nil {
 		t.logger.Bg().Error("verify token failed", zap.Error(err))
 		return nil, err
 	}
-	uc, ok := claims.(*UserClaims)
+	uc, ok := claims.(*Claims)
 	if !ok {
 		t.logger.Bg().Error("invalid", zap.Any("claims", claims))
 		return nil, fmt.Errorf("invalid token claims")

@@ -40,12 +40,12 @@ func userService() error {
 		logError(zapLogger, server.Run())
 	}()
 
-	// go func() {
-	// 	err := testGrpcClient(cfgs.ClientConfig, logger)
-	// 	if err != nil {
-	// 		logError(zapLogger, err)
-	// 	}
-	// }()
+	go func() {
+		err := testGrpcClient(cfgs.ClientConfig["user"])
+		if err != nil {
+			logError(zapLogger, err)
+		}
+	}()
 
 	// run grpc-gateway
 	handler := user.NewHandler(cfgs)
@@ -68,11 +68,11 @@ func testGrpcClient(cfgs *configs.ClientConfig) error {
 	defer c.Close()
 
 	// login
-	username, password := "string@gmail.com", "stringstring"
-	if token, err := c.Login(username, password); err != nil {
+	username, password := "abc@gmail.com", "stringstring"
+	token, err := c.Login(username, password)
+	if err != nil {
 		return err
-	} else {
-		log.Info("login resp", zap.String("token", token))
 	}
+	log.Info("login resp", zap.String("token", token))
 	return nil
 }

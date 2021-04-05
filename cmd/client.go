@@ -56,12 +56,11 @@ func UserClientService() error {
 	defer c.Close()
 
 	// login
-	username, password := "string@gmail.com", "stringstring"
-	if token, err := c.Login(username, password); err != nil {
+	username, password := "abc@gmail.com", "stringstring"
+	token, err := c.Login(username, password)
+	if err != nil {
 		return logError(zapLogger, err)
-	} else {
-		zapLogger.Bg().Info("login resp", zap.String("token", token))
 	}
-
+	zapLogger.Bg().Info("login resp", zap.String("token", token))
 	return nil
 }

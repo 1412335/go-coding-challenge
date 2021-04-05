@@ -10,6 +10,9 @@ import "google/api/annotations.proto";
 
 import "protoc-gen-swagger/options/annotations.proto";
 
+import "transaction.proto";
+import "account.proto";
+
 option go_package = "./;user";
 
 option (grpc.gateway.protoc_gen_swagger.options.openapiv2_swagger) = {
@@ -60,6 +63,32 @@ service UserService {
         };
     };
 
+    // accounts
+    rpc CreateAccount(CreateAccountRequest) returns (CreateAccountResponse) {
+        option (google.api.http) = {
+            post: "/api/v1/users/{user_id}/accounts"
+            body: "*"
+        };
+    };
+    rpc ListAccounts(ListAccountsRequest) returns (ListAccountsResponse) {
+        option (google.api.http) = {
+            get: "/api/v1/users/{user_id}/accounts"
+        };
+    };
+
+    // transactions
+    rpc CreateTransaction(CreateTransactionRequest) returns (CreateTransactionResponse) {
+        option (google.api.http) = {
+            post: "/api/v1/users/{user_id}/transactions"
+            body: "*"
+        };
+    };
+    rpc ListTransactions(ListTransactionsRequest) returns (ListTransactionsResponse) {
+        option (google.api.http) = {
+            get: "/api/v1/users/{user_id}/transactions"
+        };
+    };
+
     // auth
 	rpc Login(LoginRequest) returns (LoginResponse) {
         option (google.api.http) = {
@@ -81,8 +110,9 @@ service UserService {
     }
 }
 
+// users
 message User {
-    string id = 1;
+    int64 id = 1;
     string email = 2;
     string password = 3;
     google.protobuf.Timestamp created_at = 10;
@@ -100,16 +130,8 @@ message CreateUserResponse {
 }
 
 message ListUsersRequest {
-    google.protobuf.StringValue id = 3 [
-        (grpc.gateway.protoc_gen_swagger.options.openapiv2_field) = {
-            pattern: "^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$",
-            title: "id",
-            description: "user id",
-            format: "uuid",
-            example: "\"2438ac3c-37eb-4902-adef-ed16b4431030\""
-        }
-    ];
-	google.protobuf.StringValue email = 6;
+    google.protobuf.Int64Value id = 1;
+	google.protobuf.StringValue email = 2;
 }
 
 message ListUsersResponse {
@@ -128,11 +150,11 @@ message UpdateUserResponse {
 }
 
 message DeleteUserRequest {
-	string id = 1;
+    int64 id = 1;
 }
 
 message DeleteUserResponse {
-	string id = 1;
+    int64 id = 1;
 }
 
 // auth
@@ -147,7 +169,7 @@ message LoginResponse {
 }
 
 message LogoutRequest {
-	string id = 1;
+    int64 id = 1;
 }
 
 message LogoutResponse {

@@ -43,7 +43,7 @@ cli:
 # gofmt
 .PHONY: fmt
 fmt:
-	go fmt -mod=mod ./...
+	go fmt -mod=mod $(go list ./... | grep -v /pkg/api/)
 
 # go-lint
 .PHONY: lint

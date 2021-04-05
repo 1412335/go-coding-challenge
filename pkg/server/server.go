@@ -145,13 +145,11 @@ func (s *Server) Run(registerService func(*grpc.Server) error, stopper func()) e
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	go func() {
-		select {
-		case sig := <-c:
-			s.logger.For(ctx).Error("Shutting down gRPC server", zap.Stringer("signal", sig))
-			s.grpcServer.GracefulStop()
-			stopper()
-			<-ctx.Done()
-		}
+		sig := <-c
+		s.logger.For(ctx).Error("Shutting down gRPC server", zap.Stringer("signal", sig))
+		s.grpcServer.GracefulStop()
+		stopper()
+		<-ctx.Done()
 	}()
 
 	s.logger.For(ctx).Info("Starting gRPC server", zap.String("at", host))

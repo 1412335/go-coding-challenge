@@ -35,11 +35,10 @@
         "parameters": [
           {
             "name": "id",
-            "description": "id. user id",
             "in": "query",
             "required": false,
             "type": "string",
-            "format": "uuid"
+            "format": "int64"
           },
           {
             "name": "email",
@@ -177,11 +176,10 @@
         "parameters": [
           {
             "name": "id",
-            "description": "id. user id",
             "in": "query",
             "required": false,
             "type": "string",
-            "format": "uuid"
+            "format": "int64"
           },
           {
             "name": "email",
@@ -249,7 +247,8 @@
             "name": "id",
             "in": "path",
             "required": true,
-            "type": "string"
+            "type": "string",
+            "format": "int64"
           }
         ],
         "tags": [
@@ -279,7 +278,8 @@
             "name": "user.id",
             "in": "path",
             "required": true,
-            "type": "string"
+            "type": "string",
+            "format": "int64"
           },
           {
             "name": "body",
@@ -326,7 +326,8 @@
             "name": "user.id",
             "in": "path",
             "required": true,
-            "type": "string"
+            "type": "string",
+            "format": "int64"
           },
           {
             "name": "body",
@@ -341,9 +342,187 @@
           "UserService"
         ]
       }
+    },
+    "/api/v1/users/{user_id}/accounts": {
+      "get": {
+        "operationId": "UserService_ListAccounts",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/userListAccountsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "UserService"
+        ]
+      },
+      "post": {
+        "summary": "accounts",
+        "operationId": "UserService_CreateAccount",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/userCreateAccountResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/userCreateAccountRequest"
+            }
+          }
+        ],
+        "tags": [
+          "UserService"
+        ]
+      }
+    },
+    "/api/v1/users/{user_id}/transactions": {
+      "get": {
+        "operationId": "UserService_ListTransactions",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/userListTransactionsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "account_id",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "UserService"
+        ]
+      },
+      "post": {
+        "summary": "transactions",
+        "operationId": "UserService_CreateTransaction",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/userCreateTransactionResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/userCreateTransactionRequest"
+            }
+          }
+        ],
+        "tags": [
+          "UserService"
+        ]
+      }
     }
   },
   "definitions": {
+    "ListTransactionsResponseResult": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "int64"
+        },
+        "account_id": {
+          "type": "string",
+          "format": "int64"
+        },
+        "amount": {
+          "type": "number",
+          "format": "double"
+        },
+        "bank": {
+          "type": "string"
+        },
+        "transaction_type": {
+          "$ref": "#/definitions/userTransactionType"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
     "protobufAny": {
       "type": "object",
       "properties": {
@@ -419,6 +598,93 @@
         }
       }
     },
+    "userAccount": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "int64"
+        },
+        "name": {
+          "type": "string"
+        },
+        "bank": {
+          "$ref": "#/definitions/userBank"
+        },
+        "user_id": {
+          "type": "string",
+          "format": "int64"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "userBank": {
+      "type": "string",
+      "enum": [
+        "VCB",
+        "ACB",
+        "VIB"
+      ],
+      "default": "VCB"
+    },
+    "userCreateAccountRequest": {
+      "type": "object",
+      "properties": {
+        "user_id": {
+          "type": "string",
+          "format": "int64"
+        },
+        "name": {
+          "type": "string"
+        },
+        "bank": {
+          "$ref": "#/definitions/userBank"
+        }
+      }
+    },
+    "userCreateAccountResponse": {
+      "type": "object",
+      "properties": {
+        "account": {
+          "$ref": "#/definitions/userAccount"
+        }
+      }
+    },
+    "userCreateTransactionRequest": {
+      "type": "object",
+      "properties": {
+        "user_id": {
+          "type": "string",
+          "format": "int64"
+        },
+        "account_id": {
+          "type": "string",
+          "format": "int64"
+        },
+        "amount": {
+          "type": "number",
+          "format": "double"
+        },
+        "transaction_type": {
+          "$ref": "#/definitions/userTransactionType"
+        }
+      }
+    },
+    "userCreateTransactionResponse": {
+      "type": "object",
+      "properties": {
+        "transaction": {
+          "$ref": "#/definitions/userTransaction"
+        }
+      }
+    },
     "userCreateUserRequest": {
       "type": "object",
       "properties": {
@@ -445,7 +711,30 @@
       "type": "object",
       "properties": {
         "id": {
-          "type": "string"
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
+    "userListAccountsResponse": {
+      "type": "object",
+      "properties": {
+        "account": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/userAccount"
+          }
+        }
+      }
+    },
+    "userListTransactionsResponse": {
+      "type": "object",
+      "properties": {
+        "transactions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ListTransactionsResponseResult"
+          }
         }
       }
     },
@@ -487,12 +776,50 @@
       "type": "object",
       "properties": {
         "id": {
-          "type": "string"
+          "type": "string",
+          "format": "int64"
         }
       }
     },
     "userLogoutResponse": {
       "type": "object"
+    },
+    "userTransaction": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "int64"
+        },
+        "account_id": {
+          "type": "string",
+          "format": "int64"
+        },
+        "amount": {
+          "type": "number",
+          "format": "double"
+        },
+        "transaction_type": {
+          "$ref": "#/definitions/userTransactionType"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "userTransactionType": {
+      "type": "string",
+      "enum": [
+        "WITHDRAW",
+        "DEPOSIT"
+      ],
+      "default": "WITHDRAW",
+      "title": "transactions"
     },
     "userUpdateUserRequest": {
       "type": "object",
@@ -518,7 +845,8 @@
       "type": "object",
       "properties": {
         "id": {
-          "type": "string"
+          "type": "string",
+          "format": "int64"
         },
         "email": {
           "type": "string"
@@ -534,7 +862,8 @@
           "type": "string",
           "format": "date-time"
         }
-      }
+      },
+      "title": "users"
     },
     "userValidateRequest": {
       "type": "object",

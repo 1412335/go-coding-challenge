@@ -292,13 +292,11 @@ func (h *Handler) Run() error {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
 	go func() {
-		select {
-		case sig := <-signals:
-			h.logger.For(ctx).Info("Received signal", zap.Any("signal", sig))
-			shutdown, can := context.WithTimeout(ctx, 10*time.Second)
-			srv.Shutdown(shutdown)
-			defer can()
-		}
+		sig := <-signals
+		h.logger.For(ctx).Info("Received signal", zap.Any("signal", sig))
+		shutdown, can := context.WithTimeout(ctx, 10*time.Second)
+		srv.Shutdown(shutdown)
+		defer can()
 	}()
 
 	h.logger.For(ctx).Info("Serving gRPC-Gateway on", zap.String("addr", "http://"+addr), zap.String("openapi", "http://"+addr+"/openapi-ui/"))

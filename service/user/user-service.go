@@ -6,13 +6,14 @@ import (
 	"strings"
 
 	"github.com/fatih/structs"
-	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"gorm.io/gorm"
 
+	// pbAccount "github.com/1412335/moneyforward-go-coding-challenge/pkg/api/account"
+	// pbTransaction "github.com/1412335/moneyforward-go-coding-challenge/pkg/api/transaction"
 	pb "github.com/1412335/moneyforward-go-coding-challenge/pkg/api/user"
 	"github.com/1412335/moneyforward-go-coding-challenge/pkg/dal/postgres"
 	"github.com/1412335/moneyforward-go-coding-challenge/pkg/errors"
@@ -57,7 +58,7 @@ func NewUserService(dal *postgres.DataAccessLayer, tokenSrv *TokenService) pb.Us
 }
 
 // get user by id from redis & db
-func (u *userServiceImpl) getUserByID(ctx context.Context, id string) (*User, error) {
+func (u *userServiceImpl) getUserByID(ctx context.Context, id int64) (*User, error) {
 	user := &User{}
 	err := u.dal.GetDatabase().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// find user by id
@@ -90,7 +91,6 @@ func (u *userServiceImpl) Create(ctx context.Context, req *pb.CreateUserRequest)
 	}
 
 	user := &User{
-		ID:       uuid.New().String(),
 		Email:    req.GetEmail(),
 		Password: req.GetPassword(),
 	}
@@ -126,7 +126,7 @@ func (u *userServiceImpl) Create(ctx context.Context, req *pb.CreateUserRequest)
 
 // delete user by id
 func (u *userServiceImpl) Delete(ctx context.Context, req *pb.DeleteUserRequest) (*pb.DeleteUserResponse, error) {
-	if len(req.GetId()) == 0 {
+	if req.GetId() == 0 {
 		return nil, ErrMissingID
 	}
 	err := u.dal.GetDatabase().Transaction(func(tx *gorm.DB) error {
@@ -148,7 +148,7 @@ func (u *userServiceImpl) Delete(ctx context.Context, req *pb.DeleteUserRequest)
 
 // update user by id
 func (u *userServiceImpl) Update(ctx context.Context, req *pb.UpdateUserRequest) (*pb.UpdateUserResponse, error) {
-	if len(req.GetUser().GetId()) == 0 {
+	if req.GetUser().GetId() == 0 {
 		return nil, ErrMissingID
 	}
 	rsp := &pb.UpdateUserResponse{}
@@ -331,7 +331,7 @@ func (u *userServiceImpl) Login(ctx context.Context, req *pb.LoginRequest) (*pb.
 
 // logout: clear redis cache
 func (u *userServiceImpl) Logout(ctx context.Context, req *pb.LogoutRequest) (*pb.LogoutResponse, error) {
-	if len(req.GetId()) == 0 {
+	if req.GetId() == 0 {
 		return nil, ErrMissingID
 	}
 	return nil, nil
@@ -370,4 +370,20 @@ func (u *userServiceImpl) Validate(ctx context.Context, req *pb.ValidateRequest)
 		return nil, err
 	}
 	return rsp, err
+}
+
+// accounts
+func (u *userServiceImpl) CreateAccount(ctx context.Context, req *pb.CreateAccountRequest) (*pb.CreateAccountResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateAccount not implemented")
+}
+func (u *userServiceImpl) ListAccounts(ctx context.Context, req *pb.ListAccountsRequest) (*pb.ListAccountsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListAccounts not implemented")
+}
+
+// transactions
+func (u *userServiceImpl) CreateTransaction(ctx context.Context, req *pb.CreateTransactionRequest) (*pb.CreateTransactionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateTransaction not implemented")
+}
+func (u *userServiceImpl) ListTransactions(ctx context.Context, req *pb.ListTransactionsRequest) (*pb.ListTransactionsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListTransactions not implemented")
 }

@@ -26,6 +26,8 @@ type ServiceConfig struct {
 	TLSCert   *TLSCert
 	// log factory
 	Log *Log
+	//
+	AuthRequiredMethods map[string]bool
 }
 
 type ClientConfig struct {

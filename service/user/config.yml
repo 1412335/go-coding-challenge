@@ -11,6 +11,15 @@ jwt:
   secretKey: "lu"
   duration: "1200s"
   issuer: "lu"
+authRequiredMethods:
+  - "/user.UserService/List": true
+  - "/user.UserService/ListStream": true
+  - "/user.UserService/Delete": true
+  - "/user.UserService/Update": true
+  - "/user.UserService/CreateAccount": true
+  - "/user.UserService/ListAccounts": true
+  - "/user.UserService/CreateTransaction": true
+  - "/user.UserService/ListTransactions": true
 # redis:
 #   nodes:
 #     - "host.docker.internal:6379"
@@ -51,5 +60,13 @@ clientConfig:
     version: "v1"
     grpc: 
       host: "transaction-service"
+      port: 9090
+    enableTLS: false
+  user:
+    serviceName: "service.user.client"
+    version: "v1"
+    enableTracing: false
+    grpc: 
+      host: "localhost"
       port: 9090
     enableTLS: false

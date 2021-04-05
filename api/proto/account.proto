@@ -1,0 +1,60 @@
+syntax="proto3";
+
+package user;
+
+import "google/protobuf/wrappers.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/field_mask.proto";
+
+option go_package = "./;user";
+
+enum Bank {
+    VCB = 0;
+    ACB = 1;
+    VIB = 2;
+}
+
+message Account {
+    int64 id = 1;
+    string name = 2;
+    Bank bank = 3;
+    int64 user_id = 4;
+    google.protobuf.Timestamp created_at = 10;
+    google.protobuf.Timestamp updated_at = 11;
+}
+
+message CreateAccountRequest {
+    int64 user_id = 1;
+	string name = 2;
+    Bank bank = 3;
+}
+
+message CreateAccountResponse {
+	Account account = 1;
+}
+
+message ListAccountsRequest {
+    google.protobuf.Int64Value user_id = 1 ;
+	google.protobuf.StringValue name = 2;
+}
+
+message ListAccountsResponse {
+	repeated Account account = 1;
+}
+
+message UpdateAccountRequest {
+    Account account = 1;
+    google.protobuf.FieldMask update_mask = 2;
+}
+
+message UpdateAccountResponse {
+	Account account = 1;
+}
+
+message DeleteAccountRequest {
+	string id = 1;
+}
+
+message DeleteAccountResponse {
+	string id = 1;
+}
