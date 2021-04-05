@@ -36,13 +36,14 @@ message CreateAccountResponse {
 }
 
 message ListAccountsRequest {
-    google.protobuf.Int64Value user_id = 1 ;
+    google.protobuf.Int64Value user_id = 1;
 	google.protobuf.StringValue name = 2;
     google.protobuf.DoubleValue balance = 3;
+    google.protobuf.Int64Value id = 4;
 }
 
 message ListAccountsResponse {
-	repeated Account account = 1;
+	repeated Account accounts = 1;
 }
 
 message UpdateAccountRequest {

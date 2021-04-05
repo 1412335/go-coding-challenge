@@ -19,8 +19,9 @@ var (
 
 	ErrConnectDB = errors.InternalServerError("Connect db failed", "Connecting to database failed")
 
-	ErrUserNotFound    = errors.NotFound("Not found user", map[string]string{"user": "User not found"})
-	ErrAccountNotFound = errors.NotFound("Not found user account", map[string]string{"account": "Account not found"})
+	ErrUserNotFound        = errors.NotFound("Not found user", map[string]string{"user": "User not found"})
+	ErrAccountNotFound     = errors.NotFound("Not found user account", map[string]string{"account": "Account not found"})
+	ErrTransactionNotFound = errors.NotFound("Not found user account transactions", map[string]string{"trans": "Transactions not found"})
 
 	ErrMissingToken   = errors.BadRequest("Token missing", map[string]string{"token": "Missing token"})
 	ErrTokenGenerated = errors.InternalServerError("Token gen failed", "Generate token failed")

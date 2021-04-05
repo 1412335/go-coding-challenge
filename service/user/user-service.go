@@ -422,7 +422,7 @@ func (u *userServiceImpl) CreateTransaction(ctx context.Context, req *pb.CreateT
 		var acc model.Account
 		// find account by userId + accId
 		if e := tx.Where(&model.Account{ID: req.GetAccountId(), UserID: req.GetUserId()}).First(&acc).Error; e == gorm.ErrRecordNotFound {
-			return errorSrv.ErrUserNotFound
+			return errorSrv.ErrAccountNotFound
 		} else if e != nil {
 			u.logger.For(ctx).Error("Error find user by id", zap.Error(e))
 			return errorSrv.ErrConnectDB
@@ -494,7 +494,7 @@ func (u *userServiceImpl) ListTransactions(ctx context.Context, req *pb.ListTran
 	// lookup acc & its transactions
 	var accs []model.Account
 	if e := q.Preload("Transactions").Find(&accs).Error; e == gorm.ErrRecordNotFound {
-		return nil, errorSrv.ErrUserNotFound
+		return nil, errorSrv.ErrTransactionNotFound
 	} else if e != nil {
 		u.logger.For(ctx).Error("Error find user by id", zap.Error(e))
 		return nil, errorSrv.ErrConnectDB

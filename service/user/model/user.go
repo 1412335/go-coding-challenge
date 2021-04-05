@@ -16,7 +16,7 @@ import (
 type User struct {
 	ID        int64     `json:"id"`
 	Email     string    `gorm:"uniqueIndex" validate:"nonzero"`
-	Password  string    `json:"-" validate:"min=8"`
+	Password  string    `json:"-"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Accounts  []Account `json:"accounts"`
