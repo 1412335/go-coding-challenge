@@ -24,6 +24,7 @@ import (
 
 	pb "github.com/1412335/moneyforward-go-coding-challenge/pkg/api/user"
 	"github.com/1412335/moneyforward-go-coding-challenge/pkg/configs"
+	"github.com/1412335/moneyforward-go-coding-challenge/pkg/errors"
 	"github.com/1412335/moneyforward-go-coding-challenge/pkg/log"
 	"github.com/1412335/moneyforward-go-coding-challenge/pkg/utils"
 
@@ -211,6 +212,9 @@ func (h *Handler) loadServerTLSCredentials() (*tls.Config, error) {
 func (h *Handler) Run() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	// custom http error
+	runtime.HTTPError = errors.CustomHTTPError
 
 	mux := runtime.NewServeMux(
 		runtime.WithIncomingHeaderMatcher(h.incomingHeaderMatcher),
