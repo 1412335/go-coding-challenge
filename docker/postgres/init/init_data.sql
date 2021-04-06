@@ -24,8 +24,8 @@ CREATE TABLE "public"."users" (
     id  bigint NOT NULL DEFAULT next_id(),
     email varchar(255) NOT NULL,
     password varchar(255)  NOT NULL,
-    created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id)
 );
 
@@ -42,8 +42,8 @@ CREATE TABLE "public"."accounts" (
     name varchar(255),
     bank varchar(10),
     balance numeric NOT NULL DEFAULT 0,
-    created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id)
 );
 
@@ -59,8 +59,8 @@ CREATE TABLE "public"."transactions" (
     account_id bigint NOT NULL,
     transaction_type varchar(10),
     amount numeric NOT NULL DEFAULT 0,
-    created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id)
 );
 

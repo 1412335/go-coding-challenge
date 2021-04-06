@@ -15,14 +15,33 @@ import (
 	"github.com/1412335/moneyforward-go-coding-challenge/pkg/log"
 	errorSrv "github.com/1412335/moneyforward-go-coding-challenge/service/user/error"
 	"github.com/1412335/moneyforward-go-coding-challenge/service/user/model"
-	"go.uber.org/zap"
 )
+
+func newUserServiceError(t *testing.T) {
+	// service configs
+	config := configs.ServiceConfig{
+		Database: &configs.Database{
+			Host:           "postgres",
+			Port:           "5432",
+			User:           "root",
+			Password:       "root",
+			Scheme:         "users",
+			MaxIdleConns:   10,
+			MaxOpenConns:   100,
+			ConnectTimeout: 1 * time.Hour,
+		},
+	}
+	// init postgres
+	dal, err := postgres.NewDataAccessLayer(context.Background(), config.Database)
+	require.Error(t, err)
+	require.Nil(t, dal)
+}
 
 func newUserService(t *testing.T) pb.UserServiceServer {
 	// service configs
 	config := configs.ServiceConfig{
 		Database: &configs.Database{
-			Host:           "postgres",
+			Host:           "localhost",
 			Port:           "5432",
 			User:           "root",
 			Password:       "root",
@@ -44,24 +63,27 @@ func newUserService(t *testing.T) pb.UserServiceServer {
 	require.NotNil(t, dal.GetDatabase())
 
 	// truncate table
-	err = dal.GetDatabase().Exec("TRUNCATE TABLE users CASCADE").Error
+	err = dal.GetDatabase().Exec("TRUNCATE TABLE users, accounts, transactions CASCADE").Error
 	require.NoError(t, err)
 
 	// migrate db
-	if err := dal.GetDatabase().AutoMigrate(
+	err = dal.GetDatabase().AutoMigrate(
 		&model.User{},
 		&model.Account{},
 		&model.Transaction{},
-	); err != nil {
-		log.Fatal("migrate db failed", zap.Error(err))
-		return nil
-	}
+	)
+	require.NoError(t, err)
 
 	// token service
 	tokenSrv := NewTokenService(config.JWT)
+	require.NotNil(t, tokenSrv)
 
 	// create server
 	return NewUserService(dal, tokenSrv)
+}
+
+func TestNewUserService_Error(t *testing.T) {
+	newUserServiceError(t)
 }
 
 func TestNewUserService(t *testing.T) {
@@ -131,17 +153,25 @@ func Test_userServiceImpl_Create(t *testing.T) {
 			err: errorSrv.ErrInvalidPassword,
 		},
 		{
+			name: "ErrInvalidPasswordLength",
+			req: &pb.CreateUserRequest{
+				Email:    "abc@gmail.com",
+				Password: "abc",
+			},
+			err: errorSrv.ErrInvalidPassword,
+		},
+		{
 			name: "Success",
 			req: &pb.CreateUserRequest{
 				Email:    "abc@gmail.com",
-				Password: "abc123",
+				Password: "abc123456",
 			},
 		},
 		{
 			name: "DuplicateUserEmail",
 			req: &pb.CreateUserRequest{
 				Email:    "abc@gmail.com",
-				Password: "abc123",
+				Password: "abc123456",
 			},
 			err: errorSrv.ErrDuplicateEmail,
 		},
@@ -151,13 +181,17 @@ func Test_userServiceImpl_Create(t *testing.T) {
 			rsp, err := s.Create(context.TODO(), tt.req)
 			if tt.err != nil {
 				require.ErrorIs(t, err, tt.err)
-				require.Nil(t, rsp.User)
-				require.Empty(t, rsp.Token)
+				require.Nil(t, rsp)
 			} else {
 				require.NoError(t, err)
 				require.NotNil(t, rsp.User)
 				require.Equal(t, tt.req.Email, rsp.User.Email)
 				require.NotEmpty(t, rsp.Token)
+				// fetch response header
+				// var header metadata.MD
+				// grpc.Header(&header)
+				// xrespid := header.Get("X-Http-Code")
+				// log.Info("Got response", zap.Strings("X-Http-Code", xrespid))
 			}
 		})
 	}
@@ -354,7 +388,7 @@ func Test_userServiceImpl_Login(t *testing.T) {
 	// mockup
 	req := &pb.CreateUserRequest{
 		Email:    "abc@gmail.com",
-		Password: "abc123",
+		Password: "abc123456",
 	}
 	rspCreated, err := s.Create(context.TODO(), req)
 	require.NoError(t, err)
@@ -392,7 +426,7 @@ func Test_userServiceImpl_Login(t *testing.T) {
 			name: "ErrUserNotFound",
 			req: &pb.LoginRequest{
 				Email:    "a@gmail.com",
-				Password: "abc123",
+				Password: "abc123456",
 			},
 			err: errorSrv.ErrUserNotFound,
 		},
@@ -408,7 +442,7 @@ func Test_userServiceImpl_Login(t *testing.T) {
 			name: "Success",
 			req: &pb.LoginRequest{
 				Email:    "abc@gmail.com",
-				Password: "abc123",
+				Password: "abc123456",
 			},
 		},
 	}
@@ -417,8 +451,7 @@ func Test_userServiceImpl_Login(t *testing.T) {
 			rsp, err := s.Login(context.TODO(), tt.req)
 			if tt.err != nil {
 				require.ErrorIs(t, err, tt.err)
-				require.Nil(t, rsp.User)
-				require.Empty(t, rsp.Token)
+				require.Nil(t, rsp)
 			} else {
 				require.NoError(t, err)
 				require.NotNil(t, rsp.User)
@@ -513,7 +546,7 @@ func Test_userServiceImpl_CreateAccount(t *testing.T) {
 	// create user
 	req := &pb.CreateUserRequest{
 		Email:    "abc@gmail.com",
-		Password: "abc123",
+		Password: "abc123456",
 	}
 	rspUserCreated, err := s.Create(context.TODO(), req)
 	require.NoError(t, err)
@@ -539,6 +572,15 @@ func Test_userServiceImpl_CreateAccount(t *testing.T) {
 			err: errorSrv.ErrUserNotFound,
 		},
 		{
+			name: "ErrInvalidAccountBalance",
+			req: &pb.CreateAccountRequest{
+				UserId:  rspUserCreated.User.Id,
+				Bank:    pb.Bank_ACB,
+				Balance: -100000,
+			},
+			err: errorSrv.ErrInvalidAccountBalance,
+		},
+		{
 			name: "Success",
 			req: &pb.CreateAccountRequest{
 				UserId:  rspUserCreated.User.Id,
@@ -553,7 +595,7 @@ func Test_userServiceImpl_CreateAccount(t *testing.T) {
 			rsp, err := s.CreateAccount(context.TODO(), tt.req)
 			if tt.err != nil {
 				require.ErrorIs(t, err, tt.err)
-				require.Nil(t, rsp.Account)
+				require.Nil(t, rsp)
 			} else {
 				require.NoError(t, err)
 				require.NotNil(t, rsp.Account)
@@ -567,38 +609,93 @@ func Test_userServiceImpl_CreateAccount(t *testing.T) {
 }
 
 func Test_userServiceImpl_ListAccounts(t *testing.T) {
-	type fields struct {
-		dal      *postgres.DataAccessLayer
-		logger   log.Factory
-		tokenSrv *TokenService
+	s := newUserService(t)
+	require.NotNil(t, s)
+
+	// create user
+	req := &pb.CreateUserRequest{
+		Email:    "abc@gmail.com",
+		Password: "abc123456",
 	}
-	type args struct {
-		ctx context.Context
-		req *pb.ListAccountsRequest
+	rspUserCreated, err := s.Create(context.TODO(), req)
+	require.NoError(t, err)
+	require.NotNil(t, rspUserCreated.User)
+	require.Equal(t, req.Email, rspUserCreated.User.Email)
+	require.NotEmpty(t, rspUserCreated.Token)
+
+	// create accounts
+	reqAccs := []*pb.CreateAccountRequest{
+		{
+			UserId:  rspUserCreated.User.Id,
+			Name:    rspUserCreated.User.Email,
+			Bank:    pb.Bank_ACB,
+			Balance: 10000,
+		},
+		{
+			UserId:  rspUserCreated.User.Id,
+			Name:    rspUserCreated.User.Email,
+			Bank:    pb.Bank_VCB,
+			Balance: 20000,
+		},
 	}
+	rspAccCreated := make([]*pb.CreateAccountResponse, len(reqAccs))
+	for i, acc := range reqAccs {
+		rsp, err := s.CreateAccount(context.TODO(), acc)
+		require.NoError(t, err)
+		require.NotNil(t, rsp.Account)
+		require.Equal(t, acc.UserId, rsp.Account.UserId)
+		require.Equal(t, acc.Name, rsp.Account.Name)
+		require.Equal(t, acc.Bank, rsp.Account.Bank)
+		require.Equal(t, acc.Balance, rsp.Account.Balance)
+		rspAccCreated[i] = rsp
+	}
+
 	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    *pb.ListAccountsResponse
-		wantErr bool
+		name string
+		req  *pb.ListAccountsRequest
+		err  error
 	}{
-		// TODO: Add test cases.
+		{
+			name: "ErrMissingUserID",
+			req:  &pb.ListAccountsRequest{},
+			err:  errorSrv.ErrMissingUserID,
+		},
+		{
+			name: "ErrUserNotFound",
+			req: &pb.ListAccountsRequest{
+				UserId: wrapperspb.Int64(1),
+			},
+			err: errorSrv.ErrUserNotFound,
+		},
+		{
+			name: "Success",
+			req: &pb.ListAccountsRequest{
+				UserId: wrapperspb.Int64(rspUserCreated.User.Id),
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			u := &userServiceImpl{
-				dal:      tt.fields.dal,
-				logger:   tt.fields.logger,
-				tokenSrv: tt.fields.tokenSrv,
-			}
-			got, err := u.ListAccounts(tt.args.ctx, tt.args.req)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("userServiceImpl.ListAccounts() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("userServiceImpl.ListAccounts() = %v, want %v", got, tt.want)
+			rsp, err := s.ListAccounts(context.TODO(), tt.req)
+			if tt.err != nil {
+				require.ErrorIs(t, err, tt.err)
+				require.Nil(t, rsp)
+			} else {
+				require.NoError(t, err)
+				require.NotNil(t, rsp.Account)
+				require.Len(t, rsp.Account, len(rspAccCreated))
+				for _, acc := range rsp.Account {
+					switch acc.Id {
+					case rspAccCreated[0].Account.Id:
+						require.Equal(t, rspAccCreated[0].Account.Name, acc.Name)
+						require.Equal(t, rspAccCreated[0].Account.Bank, acc.Bank)
+						require.Equal(t, rspAccCreated[0].Account.Balance, acc.Balance)
+					case rspAccCreated[1].Account.Id:
+						require.Equal(t, rspAccCreated[1].Account.Name, acc.Name)
+						require.Equal(t, rspAccCreated[1].Account.Bank, acc.Bank)
+						require.Equal(t, rspAccCreated[1].Account.Balance, acc.Balance)
+					}
+				}
 			}
 		})
 	}
@@ -611,7 +708,7 @@ func Test_userServiceImpl_CreateTransaction(t *testing.T) {
 	// create user
 	req := &pb.CreateUserRequest{
 		Email:    "abc@gmail.com",
-		Password: "abc123",
+		Password: "abc123456",
 	}
 	rspUserCreated, err := s.Create(context.TODO(), req)
 	require.NoError(t, err)
@@ -703,14 +800,14 @@ func Test_userServiceImpl_CreateTransaction(t *testing.T) {
 			rsp, err := s.CreateTransaction(context.TODO(), tt.req)
 			if tt.err != nil {
 				require.ErrorIs(t, err, tt.err)
-				require.Nil(t, rsp.Transaction)
+				require.Nil(t, rsp)
 			} else {
 				require.NoError(t, err)
 				require.NotNil(t, rsp.Transaction)
 				require.Equal(t, tt.req.AccountId, rsp.Transaction.AccountId)
 				require.Equal(t, tt.req.Amount, rsp.Transaction.Amount)
 				require.Equal(t, tt.req.TransactionType, rsp.Transaction.TransactionType)
-				require.NotEmpty(t, rsp.Transaction.UpdatedAt)
+				require.NotEmpty(t, rsp.Transaction.CreatedAt)
 				switch tt.req.TransactionType {
 				case pb.TransactionType_WITHDRAW:
 					accBalance -= rsp.Transaction.Amount
@@ -723,7 +820,7 @@ func Test_userServiceImpl_CreateTransaction(t *testing.T) {
 				})
 				require.NoError(t, err)
 				require.NotNil(t, rspAccs.Account)
-				require.Len(t, 1, len(rspAccs.Account))
+				require.Len(t, rspAccs.Account, 1)
 				for _, acc := range rspAccs.Account {
 					if acc.Id == tt.req.AccountId {
 						require.Equal(t, accBalance, acc.Balance)
@@ -741,7 +838,7 @@ func Test_userServiceImpl_ListTransactions(t *testing.T) {
 	// create user
 	req := &pb.CreateUserRequest{
 		Email:    "abc@gmail.com",
-		Password: "abc123",
+		Password: "abc123456",
 	}
 	rspUserCreated, err := s.Create(context.TODO(), req)
 	require.NoError(t, err)
@@ -749,49 +846,76 @@ func Test_userServiceImpl_ListTransactions(t *testing.T) {
 	require.Equal(t, req.Email, rspUserCreated.User.Email)
 	require.NotEmpty(t, rspUserCreated.Token)
 
-	// create account
-	reqAcc := &pb.CreateAccountRequest{
-		UserId:  rspUserCreated.User.Id,
-		Name:    rspUserCreated.User.Email,
-		Bank:    pb.Bank_ACB,
-		Balance: 10000,
+	// create accounts
+	reqAccs := []*pb.CreateAccountRequest{
+		{
+			UserId:  rspUserCreated.User.Id,
+			Name:    rspUserCreated.User.Email,
+			Bank:    pb.Bank_ACB,
+			Balance: 10000,
+		},
+		{
+			UserId:  rspUserCreated.User.Id,
+			Name:    rspUserCreated.User.Email,
+			Bank:    pb.Bank_VCB,
+			Balance: 20000,
+		},
 	}
-	rspAccCreated, err := s.CreateAccount(context.TODO(), reqAcc)
-	require.NoError(t, err)
-	require.NotNil(t, rspAccCreated.Account)
-	require.Equal(t, reqAcc.UserId, rspAccCreated.Account.UserId)
-	require.Equal(t, reqAcc.Name, rspAccCreated.Account.Name)
-	require.Equal(t, reqAcc.Bank, rspAccCreated.Account.Bank)
-	require.Equal(t, reqAcc.Balance, rspAccCreated.Account.Balance)
+	rspAccCreated := make([]*pb.CreateAccountResponse, len(reqAccs))
+	for i, acc := range reqAccs {
+		rsp, err := s.CreateAccount(context.TODO(), acc)
+		require.NoError(t, err)
+		require.NotNil(t, rsp.Account)
+		require.Equal(t, acc.UserId, rsp.Account.UserId)
+		require.Equal(t, acc.Name, rsp.Account.Name)
+		require.Equal(t, acc.Bank, rsp.Account.Bank)
+		require.Equal(t, acc.Balance, rsp.Account.Balance)
+		rspAccCreated[i] = rsp
+	}
 
-	accBalance := rspAccCreated.Account.Balance
+	// get accounts balance
+	accBalance := make(map[int64]float64, len(rspAccCreated))
+	accBank := make(map[int64]string, len(rspAccCreated))
+	for _, rsp := range rspAccCreated {
+		accBalance[rsp.Account.Id] = rsp.Account.Balance
+		accBank[rsp.Account.Id] = rsp.Account.Bank.String()
+	}
 
 	// create transactions
 	reqTrans := []*pb.CreateTransactionRequest{
 		{
 			UserId:          rspUserCreated.User.Id,
-			AccountId:       rspAccCreated.Account.Id,
+			AccountId:       rspAccCreated[0].Account.Id,
 			Amount:          50000,
 			TransactionType: pb.TransactionType_DEPOSIT,
 		},
+		{
+			UserId:          rspUserCreated.User.Id,
+			AccountId:       rspAccCreated[1].Account.Id,
+			Amount:          1000,
+			TransactionType: pb.TransactionType_WITHDRAW,
+		},
 	}
 	rspTransCreated := make([]*pb.CreateTransactionResponse, len(reqTrans))
-	for _, trans := range reqTrans {
+	for i, trans := range reqTrans {
 		rsp, err := s.CreateTransaction(context.TODO(), trans)
 		require.NoError(t, err)
 		require.NotNil(t, rsp.Transaction)
 		require.Equal(t, trans.AccountId, rsp.Transaction.AccountId)
 		require.Equal(t, trans.Amount, rsp.Transaction.Amount)
 		require.Equal(t, trans.TransactionType, rsp.Transaction.TransactionType)
-		require.NotEmpty(t, rsp.Transaction.UpdatedAt)
+		require.NotEmpty(t, rsp.Transaction.CreatedAt)
+		_, ok := accBalance[rsp.Transaction.AccountId]
+		require.True(t, ok)
 		switch trans.TransactionType {
 		case pb.TransactionType_WITHDRAW:
-			accBalance -= trans.Amount
+			accBalance[rsp.Transaction.AccountId] -= trans.Amount
 		case pb.TransactionType_DEPOSIT:
-			accBalance += trans.Amount
+			accBalance[rsp.Transaction.AccountId] += trans.Amount
 		}
-		rspTransCreated = append(rspTransCreated, rsp)
+		rspTransCreated[i] = rsp
 	}
+	require.Len(t, rspTransCreated, len(reqAccs))
 
 	// get account
 	rspAccs, err := s.ListAccounts(context.TODO(), &pb.ListAccountsRequest{
@@ -799,10 +923,13 @@ func Test_userServiceImpl_ListTransactions(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.NotNil(t, rspAccs.Account)
-	require.Len(t, 1, len(rspAccs.Account))
+	require.Len(t, rspAccs.Account, len(rspAccCreated))
 	for _, acc := range rspAccs.Account {
-		if acc.Id == rspAccCreated.Account.Id {
-			require.Equal(t, accBalance, acc.Balance)
+		switch acc.Id {
+		case rspAccCreated[0].Account.Id:
+			require.Equal(t, accBalance[acc.Id], acc.Balance)
+		case rspAccCreated[1].Account.Id:
+			require.Equal(t, accBalance[acc.Id], acc.Balance)
 		}
 	}
 
@@ -822,7 +949,7 @@ func Test_userServiceImpl_ListTransactions(t *testing.T) {
 			name: "ErrTransactionNotFound",
 			req: &pb.ListTransactionsRequest{
 				UserId:    1,
-				AccountId: 1,
+				AccountId: 2,
 			},
 			err: errorSrv.ErrTransactionNotFound,
 		},
@@ -838,10 +965,10 @@ func Test_userServiceImpl_ListTransactions(t *testing.T) {
 			name: "SuccessGetTransactionsOfUserAccount",
 			req: &pb.ListTransactionsRequest{
 				UserId:    rspUserCreated.User.Id,
-				AccountId: rspAccCreated.Account.Id,
+				AccountId: rspAccCreated[0].Account.Id,
 			},
-			len:   2,
-			trans: rspTransCreated,
+			len:   1,
+			trans: rspTransCreated[:1],
 		},
 	}
 	for _, tt := range tests {
@@ -849,19 +976,20 @@ func Test_userServiceImpl_ListTransactions(t *testing.T) {
 			rsp, err := s.ListTransactions(context.TODO(), tt.req)
 			if tt.err != nil {
 				require.ErrorIs(t, err, tt.err)
-				require.Nil(t, rsp.Transactions)
+				require.Nil(t, rsp)
 			} else {
 				require.NoError(t, err)
 				require.NotNil(t, rsp.Transactions)
-				require.Equal(t, tt.req.AccountId, rsp.Transactions)
-				require.Len(t, tt.len, len(rsp.Transactions))
+				require.Len(t, rsp.Transactions, tt.len)
 				for _, trans := range rsp.Transactions {
 					for _, tr := range tt.trans {
 						if tr.Transaction.Id == trans.Id {
 							require.Equal(t, tr.Transaction.AccountId, trans.AccountId)
 							require.Equal(t, tr.Transaction.Amount, trans.Amount)
+							require.Equal(t, accBank[tr.Transaction.AccountId], trans.Bank.String())
 							require.Equal(t, tr.Transaction.TransactionType, trans.TransactionType)
-							require.Equal(t, tr.Transaction.CreatedAt, trans.CreatedAt)
+							require.True(t, trans.CreatedAt.AsTime().Equal(tr.Transaction.CreatedAt.AsTime()))
+							break
 						}
 					}
 				}

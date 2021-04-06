@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/fatih/structs"
 	"go.uber.org/zap"
@@ -83,7 +84,7 @@ func (u *userServiceImpl) Create(ctx context.Context, req *pb.CreateUserRequest)
 	rsp := &pb.CreateUserResponse{}
 
 	// create
-	return rsp, u.dal.GetDatabase().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := u.dal.GetDatabase().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(user).Error; err != nil && strings.Contains(err.Error(), "idx_users_email") {
 			return errorSrv.ErrDuplicateEmail
 		} else if err != nil {
@@ -102,6 +103,13 @@ func (u *userServiceImpl) Create(ctx context.Context, req *pb.CreateUserRequest)
 		rsp.Token = token
 		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
+	// set header in your handler
+	md := metadata.Pairs("X-Http-Code", "201")
+	grpc.SetHeader(ctx, md)
+	return rsp, nil
 }
 
 // delete user by id
@@ -338,6 +346,9 @@ func (u *userServiceImpl) CreateAccount(ctx context.Context, req *pb.CreateAccou
 	if req.GetUserId() == 0 {
 		return nil, errorSrv.ErrMissingUserID
 	}
+	if req.GetBalance() < 0 {
+		return nil, errorSrv.ErrInvalidAccountBalance
+	}
 
 	// response
 	rsp := &pb.CreateAccountResponse{}
@@ -356,7 +367,7 @@ func (u *userServiceImpl) CreateAccount(ctx context.Context, req *pb.CreateAccou
 			UserID:  user.ID,
 			Name:    req.GetName(),
 			Bank:    req.GetBank().String(),
-			Balance: 0,
+			Balance: req.GetBalance(),
 		}
 		if err := acc.Validate(); err != nil {
 			u.logger.For(ctx).Error("Error validate account", zap.Error(err))
@@ -448,6 +459,7 @@ func (u *userServiceImpl) CreateTransaction(ctx context.Context, req *pb.CreateT
 			AccountID:       acc.ID,
 			Amount:          req.GetAmount(),
 			TransactionType: req.GetTransactionType().String(),
+			CreatedAt:       time.Now().Round(time.Millisecond),
 		}
 		if err := trans.Validate(); err != nil {
 			u.logger.For(ctx).Error("Error validate trans", zap.Error(err))
@@ -493,11 +505,13 @@ func (u *userServiceImpl) ListTransactions(ctx context.Context, req *pb.ListTran
 
 	// lookup acc & its transactions
 	var accs []model.Account
-	if e := q.Preload("Transactions").Find(&accs).Error; e == gorm.ErrRecordNotFound {
-		return nil, errorSrv.ErrTransactionNotFound
-	} else if e != nil {
+	if e := q.Preload("Transactions").Find(&accs).Error; e != nil {
 		u.logger.For(ctx).Error("Error find user by id", zap.Error(e))
 		return nil, errorSrv.ErrConnectDB
+	}
+
+	if len(accs) == 0 {
+		return nil, errorSrv.ErrTransactionNotFound
 	}
 
 	// get all transactions
@@ -511,7 +525,7 @@ func (u *userServiceImpl) ListTransactions(ctx context.Context, req *pb.ListTran
 				Amount:    trans.Amount,
 				CreatedAt: timestamppb.New(trans.CreatedAt),
 			}
-			if b, ok := pb.TransactionType_value[acc.Bank]; ok {
+			if b, ok := pb.Bank_value[acc.Bank]; ok {
 				pbTrans.Bank = pb.Bank(b)
 			}
 			if t, ok := pb.TransactionType_value[trans.TransactionType]; ok {

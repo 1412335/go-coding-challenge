@@ -14,6 +14,7 @@ var (
 	ErrMissingUserID    = errors.BadRequest("Missing user id", map[string]string{"id": "Missing user id"})
 	ErrMissingAccountID = errors.BadRequest("Missing account id", map[string]string{"id": "Missing account id"})
 
+	ErrInvalidAccountBalance            = errors.BadRequest("Invalid account balance (>=0)", map[string]string{"balance": "greater than zero"})
 	ErrInvalidTransactionAmountGT0      = errors.BadRequest("Invalid transaction amount (>0)", map[string]string{"amount": "greater than zero"})
 	ErrInvalidWithdrawTransactionAmount = errors.BadRequest("Invalid withdraw transaction amount (<= account balance)", map[string]string{"amount": "less than or equal account balance"})
 

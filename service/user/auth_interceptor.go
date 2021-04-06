@@ -114,6 +114,15 @@ func (a *AuthServerInterceptor) UnaryInterceptor(ctx context.Context, req interf
 	if err != nil {
 		return nil, err
 	}
+
+	// check request timeout or canceled by the client
+	if ctx.Err() == context.Canceled {
+		return nil, status.Error(codes.Canceled, "request is canceled")
+	}
+	if ctx.Err() == context.DeadlineExceeded {
+		return nil, status.Error(codes.DeadlineExceeded, "deadline is exceeded")
+	}
+
 	//
 	return handler(ctx, req)
 }
