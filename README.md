@@ -12,12 +12,6 @@
 - Running gRPC-gateway at [http://127.0.0.1:8000](http://127.0.0.1:8000/openapi-ui)
 - [Makefile](./Makefile)
 
-## Install
-
-```sh
-make install
-```
-
 ## Testing
 
 ```sh
@@ -27,6 +21,9 @@ make run
 ## More commands
 
 ```sh
+# install
+make install
+
 # Gen proto
 make gen
 
