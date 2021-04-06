@@ -31,13 +31,15 @@ gen-openapi:
 .PHONY: run
 run: clean
 	@echo "====Run services===="
-	docker-compose up -d --build
+	docker-compose up -d postgres
+	sleep 10
+	docker-compose up --build user-service
 
 
 # https://github.com/ktr0731/evans
 .PHONY: cli
 cli:
-	evans -r repl -p 8080
+	evans -r repl -p 9090
 
 
 # gofmt
@@ -50,10 +52,10 @@ fmt:
 lint: fmt
 	golangci-lint run ./...
 
-# go-lint
+# go-test
 .PHONY: test
 test: lint
-	go test -v ./...
+	go test -v ./service/user/
 
 
 # cleaning
