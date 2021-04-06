@@ -11,8 +11,9 @@ var (
 	ErrIncorrectPassword = errors.Unauthenticated("Email or password is incorrect", "password", "Email or password is incorrect")
 	ErrHashPassword      = errors.InternalServerError("Hash password failed", "hash password failed")
 
-	ErrMissingUserID    = errors.BadRequest("Missing user id", map[string]string{"id": "Missing user id"})
-	ErrMissingAccountID = errors.BadRequest("Missing account id", map[string]string{"id": "Missing account id"})
+	ErrMissingUserID        = errors.BadRequest("Missing user id", map[string]string{"id": "Missing user id"})
+	ErrMissingAccountID     = errors.BadRequest("Missing account id", map[string]string{"id": "Missing account id"})
+	ErrMissingTransactionID = errors.BadRequest("Missing transaction id", map[string]string{"id": "Missing transaction id"})
 
 	ErrInvalidAccountBalance            = errors.BadRequest("Invalid account balance (>=0)", map[string]string{"balance": "greater than zero"})
 	ErrInvalidTransactionAmountGT0      = errors.BadRequest("Invalid transaction amount (>0)", map[string]string{"amount": "greater than zero"})

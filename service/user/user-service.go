@@ -3,6 +3,7 @@ package user
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -407,9 +408,9 @@ func (u *userServiceImpl) ListAccounts(ctx context.Context, req *pb.ListAccounts
 	}
 	rsp := &pb.ListAccountsResponse{}
 	// fetch accounts belong to the user
-	rsp.Account = make([]*pb.Account, len(user.Accounts))
+	rsp.Accounts = make([]*pb.Account, len(user.Accounts))
 	for i, acc := range user.Accounts {
-		rsp.Account[i] = acc.Transform2GRPC()
+		rsp.Accounts[i] = acc.Transform2GRPC()
 	}
 	return rsp, nil
 }
@@ -535,4 +536,139 @@ func (u *userServiceImpl) ListTransactions(ctx context.Context, req *pb.ListTran
 		}
 	}
 	return rsp, nil
+}
+
+// DeleteTransaction
+func (u *userServiceImpl) DeleteTransaction(ctx context.Context, req *pb.DeleteTransactionRequest) (*pb.DeleteTransactionResponse, error) {
+	// validate request
+	if req.GetUserId() == 0 {
+		return nil, errorSrv.ErrMissingUserID
+	}
+
+	// build query
+	q := u.dal.GetDatabase().Where(&model.Account{UserID: req.GetUserId()})
+	if req.GetAccountId() != nil {
+		q = q.Where("id = ?", req.GetAccountId().Value)
+	}
+
+	// lookup account
+	var accs []model.Account
+	if e := q.Preload("Transactions", func(db *gorm.DB) *gorm.DB {
+		if req.GetId() != nil {
+			db = db.Where("id = ?", req.GetId().Value)
+		}
+		return db
+	}).Find(&accs).Error; e != nil {
+		u.logger.For(ctx).Error("Error find user by id", zap.Error(e))
+		return nil, errorSrv.ErrConnectDB
+	}
+	if len(accs) == 0 {
+		return nil, errorSrv.ErrTransactionNotFound
+	}
+
+	// lookup transaction
+	var ids []int64
+	for _, acc := range accs {
+		for _, trans := range acc.Transactions {
+			ids = append(ids, trans.ID)
+		}
+	}
+	if e := u.dal.GetDatabase().Where("id IN ?", ids).Delete(&model.Transaction{}).Error; e != nil {
+		u.logger.For(ctx).Error("Error delete transaction", zap.Error(e))
+		return nil, errorSrv.ErrConnectDB
+	}
+	return &pb.DeleteTransactionResponse{Ids: ids}, nil
+}
+
+// UpdateTransaction
+func (u *userServiceImpl) UpdateTransaction(ctx context.Context, req *pb.UpdateTransactionRequest) (*pb.UpdateTransactionResponse, error) {
+	if req.GetUserId() == 0 {
+		return nil, errorSrv.ErrMissingUserID
+	}
+	if req.GetAccountId() == 0 {
+		return nil, errorSrv.ErrMissingAccountID
+	}
+	if req.GetTransaction().GetId() == 0 {
+		return nil, errorSrv.ErrMissingTransactionID
+	}
+
+	rsp := &pb.UpdateTransactionResponse{}
+	err := u.dal.GetDatabase().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// find acc
+		var acc model.Account
+		if e := tx.Where(&model.Account{ID: req.GetAccountId(), UserID: req.GetUserId()}).Preload("Transactions", func(db *gorm.DB) *gorm.DB {
+			db = db.Where("id = ?", req.GetTransaction().GetId())
+			return db
+		}).First(&acc).Error; e == gorm.ErrRecordNotFound {
+			return errorSrv.ErrAccountNotFound
+		} else if e != nil {
+			u.logger.For(ctx).Error("Error find account", zap.Error(e))
+			return errorSrv.ErrConnectDB
+		}
+
+		if len(acc.Transactions) == 0 {
+			return errorSrv.ErrTransactionNotFound
+		}
+		trans := acc.Transactions[0]
+
+		// If there is no update mask do a regular update
+		if req.GetUpdateMask() == nil || len(req.GetUpdateMask().GetPaths()) == 0 {
+			switch trans.TransactionType {
+			case pb.TransactionType_WITHDRAW.String():
+				acc.Balance += trans.Amount - req.GetTransaction().GetAmount()
+				if acc.Balance < 0 {
+					return errorSrv.ErrInvalidWithdrawTransactionAmount
+				}
+			case pb.TransactionType_DEPOSIT.String():
+				acc.Balance = acc.Balance - trans.Amount + req.GetTransaction().GetAmount()
+				if acc.Balance < 0 {
+					return errorSrv.ErrInvalidTransactionAmountGT0
+				}
+			}
+			trans.Amount = req.GetTransaction().GetAmount()
+		} else {
+			paths := req.GetUpdateMask().GetPaths()
+			sort.Strings(paths)
+			for _, path := range paths {
+				if path == "id" {
+					return errors.BadRequest("cannot update id", map[string]string{"update_mask": "cannot update id field"})
+				}
+				if path == "transaction_type" {
+					return errors.BadRequest("cannot update transaction type", map[string]string{"update_mask": "cannot update transaction_type"})
+				}
+				if path == "amount" {
+					switch trans.TransactionType {
+					case pb.TransactionType_WITHDRAW.String():
+						acc.Balance += trans.Amount - req.GetTransaction().GetAmount()
+						if acc.Balance < 0 {
+							return errorSrv.ErrInvalidWithdrawTransactionAmount
+						}
+					case pb.TransactionType_DEPOSIT.String():
+						acc.Balance = acc.Balance - trans.Amount + req.GetTransaction().GetAmount()
+						if acc.Balance < 0 {
+							return errorSrv.ErrInvalidTransactionAmountGT0
+						}
+					}
+					trans.Amount = req.GetTransaction().GetAmount()
+				}
+			}
+		}
+		// update trans
+		if e := tx.Save(trans).Error; e != nil {
+			u.logger.For(ctx).Error("Error update trans", zap.Error(e))
+			return errorSrv.ErrConnectDB
+		}
+		// update acc balance
+		if e := tx.Save(&acc).Error; e != nil {
+			u.logger.For(ctx).Error("Error update account", zap.Error(e))
+			return errorSrv.ErrConnectDB
+		}
+		// response
+		rsp.Transaction = trans.Transform2GRPC()
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return rsp, err
 }

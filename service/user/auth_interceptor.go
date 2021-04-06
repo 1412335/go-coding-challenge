@@ -95,6 +95,14 @@ func (a *AuthServerInterceptor) authorize(ctx context.Context, method string, re
 		if userClaims.ID != req.(*pb.ListTransactionsRequest).GetUserId() {
 			return ErrAccessDined
 		}
+	case "/user.UserService/UpdateTransaction":
+		if userClaims.ID != req.(*pb.UpdateTransactionRequest).GetUserId() {
+			return ErrAccessDined
+		}
+	case "/user.UserService/DeleteTransaction":
+		if userClaims.ID != req.(*pb.DeleteTransactionRequest).GetUserId() {
+			return ErrAccessDined
+		}
 	}
 	return nil
 }

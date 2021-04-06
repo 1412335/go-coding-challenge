@@ -35,7 +35,7 @@ database:
   user:  "root"
   password: "root"
   scheme: "users"
-  maxIdleConns: 10
+  maxIdleConns: 100
   maxOpenConns: 100
   connectTimeout: "1h"
   debug: true

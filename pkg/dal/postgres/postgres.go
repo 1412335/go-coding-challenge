@@ -11,20 +11,18 @@ import (
 	"gorm.io/gorm"
 )
 
-//Used to execute client creation procedure only once.
-var once sync.Once
-
-// errors
-
 type DataAccessLayer struct {
 	dbConfig *configs.Database
 	//Used during creation of singleton client object in GetMongoClient().
 	dbInstance *gorm.DB
+	//Used to execute client creation procedure only once.
+	once sync.Once
 }
 
 func NewDataAccessLayer(ctx context.Context, cfg *configs.Database) (*DataAccessLayer, error) {
 	dal := &DataAccessLayer{
 		dbConfig: cfg,
+		once:     sync.Once{},
 	}
 	if _, err := dal.Connect(ctx); err != nil {
 		return nil, err
@@ -42,7 +40,7 @@ func (dal *DataAccessLayer) buildConnectionDSN() string {
 func (dal *DataAccessLayer) Connect(ctx context.Context) (*gorm.DB, error) {
 	//Perform connection creation operation only once.
 	var err error
-	once.Do(func() {
+	dal.once.Do(func() {
 		// build connection string
 		dsn := dal.buildConnectionDSN()
 		// connect db

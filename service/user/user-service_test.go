@@ -6,15 +6,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/types/known/wrapperspb"
-
 	pb "github.com/1412335/moneyforward-go-coding-challenge/pkg/api/user"
 	"github.com/1412335/moneyforward-go-coding-challenge/pkg/configs"
 	"github.com/1412335/moneyforward-go-coding-challenge/pkg/dal/postgres"
+	"github.com/1412335/moneyforward-go-coding-challenge/pkg/errors"
 	"github.com/1412335/moneyforward-go-coding-challenge/pkg/log"
 	errorSrv "github.com/1412335/moneyforward-go-coding-challenge/service/user/error"
 	"github.com/1412335/moneyforward-go-coding-challenge/service/user/model"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 func newUserServiceError(t *testing.T) {
@@ -60,6 +61,7 @@ func newUserService(t *testing.T) pb.UserServiceServer {
 	// init postgres
 	dal, err := postgres.NewDataAccessLayer(context.Background(), config.Database)
 	require.NoError(t, err)
+	require.NotNil(t, dal)
 	require.NotNil(t, dal.GetDatabase())
 
 	// truncate table
@@ -682,9 +684,9 @@ func Test_userServiceImpl_ListAccounts(t *testing.T) {
 				require.Nil(t, rsp)
 			} else {
 				require.NoError(t, err)
-				require.NotNil(t, rsp.Account)
-				require.Len(t, rsp.Account, len(rspAccCreated))
-				for _, acc := range rsp.Account {
+				require.NotNil(t, rsp.Accounts)
+				require.Len(t, rsp.Accounts, len(rspAccCreated))
+				for _, acc := range rsp.Accounts {
 					switch acc.Id {
 					case rspAccCreated[0].Account.Id:
 						require.Equal(t, rspAccCreated[0].Account.Name, acc.Name)
@@ -819,9 +821,9 @@ func Test_userServiceImpl_CreateTransaction(t *testing.T) {
 					UserId: wrapperspb.Int64(tt.req.UserId),
 				})
 				require.NoError(t, err)
-				require.NotNil(t, rspAccs.Account)
-				require.Len(t, rspAccs.Account, 1)
-				for _, acc := range rspAccs.Account {
+				require.NotNil(t, rspAccs.Accounts)
+				require.Len(t, rspAccs.Accounts, 1)
+				for _, acc := range rspAccs.Accounts {
 					if acc.Id == tt.req.AccountId {
 						require.Equal(t, accBalance, acc.Balance)
 					}
@@ -922,9 +924,9 @@ func Test_userServiceImpl_ListTransactions(t *testing.T) {
 		UserId: wrapperspb.Int64(rspUserCreated.User.Id),
 	})
 	require.NoError(t, err)
-	require.NotNil(t, rspAccs.Account)
-	require.Len(t, rspAccs.Account, len(rspAccCreated))
-	for _, acc := range rspAccs.Account {
+	require.NotNil(t, rspAccs.Accounts)
+	require.Len(t, rspAccs.Accounts, len(rspAccCreated))
+	for _, acc := range rspAccs.Accounts {
 		switch acc.Id {
 		case rspAccCreated[0].Account.Id:
 			require.Equal(t, accBalance[acc.Id], acc.Balance)
@@ -993,6 +995,420 @@ func Test_userServiceImpl_ListTransactions(t *testing.T) {
 						}
 					}
 				}
+			}
+		})
+	}
+}
+
+func Test_userServiceImpl_DeleteTransaction(t *testing.T) {
+	s := newUserService(t)
+	require.NotNil(t, s)
+
+	// create user
+	req := &pb.CreateUserRequest{
+		Email:    "abc@gmail.com",
+		Password: "abc123456",
+	}
+	rspUserCreated, err := s.Create(context.TODO(), req)
+	require.NoError(t, err)
+	require.NotNil(t, rspUserCreated.User)
+	require.Equal(t, req.Email, rspUserCreated.User.Email)
+	require.NotEmpty(t, rspUserCreated.Token)
+
+	// create accounts
+	reqAccs := []*pb.CreateAccountRequest{
+		{
+			UserId:  rspUserCreated.User.Id,
+			Name:    rspUserCreated.User.Email,
+			Bank:    pb.Bank_ACB,
+			Balance: 10000,
+		},
+	}
+	rspAccCreated := make([]*pb.CreateAccountResponse, len(reqAccs))
+	for i, acc := range reqAccs {
+		rsp, err := s.CreateAccount(context.TODO(), acc)
+		require.NoError(t, err)
+		require.NotNil(t, rsp.Account)
+		require.Equal(t, acc.UserId, rsp.Account.UserId)
+		require.Equal(t, acc.Name, rsp.Account.Name)
+		require.Equal(t, acc.Bank, rsp.Account.Bank)
+		require.Equal(t, acc.Balance, rsp.Account.Balance)
+		rspAccCreated[i] = rsp
+	}
+
+	// create transactions
+	reqTrans := []*pb.CreateTransactionRequest{
+		{
+			UserId:          rspUserCreated.User.Id,
+			AccountId:       rspAccCreated[0].Account.Id,
+			Amount:          50000,
+			TransactionType: pb.TransactionType_DEPOSIT,
+		},
+		{
+			UserId:          rspUserCreated.User.Id,
+			AccountId:       rspAccCreated[0].Account.Id,
+			Amount:          10000,
+			TransactionType: pb.TransactionType_WITHDRAW,
+		},
+	}
+	rspTransCreated := make([]*pb.CreateTransactionResponse, len(reqTrans))
+	for i, trans := range reqTrans {
+		rsp, err := s.CreateTransaction(context.TODO(), trans)
+		require.NoError(t, err)
+		require.NotNil(t, rsp.Transaction)
+		require.Equal(t, trans.AccountId, rsp.Transaction.AccountId)
+		require.Equal(t, trans.Amount, rsp.Transaction.Amount)
+		require.Equal(t, trans.TransactionType, rsp.Transaction.TransactionType)
+		require.NotEmpty(t, rsp.Transaction.CreatedAt)
+		rspTransCreated[i] = rsp
+	}
+	require.Len(t, rspTransCreated, len(reqTrans))
+
+	tests := []struct {
+		name string
+		req  *pb.DeleteTransactionRequest
+		err  error
+		len  int
+		ids  []int64
+	}{
+		{
+			name: "ErrMissingUserID",
+			req:  &pb.DeleteTransactionRequest{},
+			err:  errorSrv.ErrMissingUserID,
+		},
+		{
+			name: "ErrTransactionNotFound",
+			req: &pb.DeleteTransactionRequest{
+				UserId:    1,
+				AccountId: wrapperspb.Int64(1),
+			},
+			err: errorSrv.ErrTransactionNotFound,
+		},
+		{
+			name: "DeleteSingleTransSuccess",
+			req: &pb.DeleteTransactionRequest{
+				UserId:    rspUserCreated.User.Id,
+				AccountId: wrapperspb.Int64(rspAccCreated[0].Account.Id),
+				Id:        wrapperspb.Int64(rspTransCreated[0].Transaction.Id),
+			},
+			len: 1,
+			ids: []int64{rspTransCreated[0].Transaction.Id},
+		},
+		{
+			name: "DeleteAllTransOfAccountSuccess",
+			req: &pb.DeleteTransactionRequest{
+				UserId:    rspUserCreated.User.Id,
+				AccountId: wrapperspb.Int64(rspAccCreated[0].Account.Id),
+			},
+			len: 1,
+			ids: []int64{rspTransCreated[1].Transaction.Id},
+		},
+		{
+			name: "DeleteAllTransOfUserSuccess",
+			req: &pb.DeleteTransactionRequest{
+				UserId: rspUserCreated.User.Id,
+			},
+			len: 0,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rsp, err := s.DeleteTransaction(context.TODO(), tt.req)
+			if tt.err != nil {
+				require.ErrorIs(t, err, tt.err)
+				require.Nil(t, rsp)
+			} else {
+				require.NoError(t, err)
+				require.NotNil(t, rsp)
+				require.Len(t, rsp.Ids, tt.len)
+				if tt.len > 0 {
+					require.Equal(t, tt.ids, rsp.Ids)
+				}
+			}
+		})
+	}
+}
+
+func Test_userServiceImpl_UpdateTransaction(t *testing.T) {
+	s := newUserService(t)
+	require.NotNil(t, s)
+
+	// create user
+	req := &pb.CreateUserRequest{
+		Email:    "abc@gmail.com",
+		Password: "abc123456",
+	}
+	rspUserCreated, err := s.Create(context.TODO(), req)
+	require.NoError(t, err)
+	require.NotNil(t, rspUserCreated.User)
+	require.Equal(t, req.Email, rspUserCreated.User.Email)
+	require.NotEmpty(t, rspUserCreated.Token)
+
+	// create accounts
+	reqAccs := []*pb.CreateAccountRequest{
+		{
+			UserId:  rspUserCreated.User.Id,
+			Name:    rspUserCreated.User.Email,
+			Bank:    pb.Bank_ACB,
+			Balance: 10000,
+		},
+	}
+	rspAccCreated := make([]*pb.CreateAccountResponse, len(reqAccs))
+	for i, acc := range reqAccs {
+		rsp, err := s.CreateAccount(context.TODO(), acc)
+		require.NoError(t, err)
+		require.NotNil(t, rsp.Account)
+		require.Equal(t, acc.UserId, rsp.Account.UserId)
+		require.Equal(t, acc.Name, rsp.Account.Name)
+		require.Equal(t, acc.Bank, rsp.Account.Bank)
+		require.Equal(t, acc.Balance, rsp.Account.Balance)
+		rspAccCreated[i] = rsp
+	}
+
+	// create transactions
+	reqTrans := []*pb.CreateTransactionRequest{
+		{
+			UserId:          rspUserCreated.User.Id,
+			AccountId:       rspAccCreated[0].Account.Id,
+			Amount:          10000,
+			TransactionType: pb.TransactionType_WITHDRAW,
+		},
+		{
+			UserId:          rspUserCreated.User.Id,
+			AccountId:       rspAccCreated[0].Account.Id,
+			Amount:          10000,
+			TransactionType: pb.TransactionType_DEPOSIT,
+		},
+		{
+			UserId:          rspUserCreated.User.Id,
+			AccountId:       rspAccCreated[0].Account.Id,
+			Amount:          10000,
+			TransactionType: pb.TransactionType_WITHDRAW,
+		},
+	}
+	rspTransCreated := make([]*pb.CreateTransactionResponse, len(reqTrans))
+	for i, trans := range reqTrans {
+		rsp, err := s.CreateTransaction(context.TODO(), trans)
+		require.NoError(t, err)
+		require.NotNil(t, rsp.Transaction)
+		require.Equal(t, trans.AccountId, rsp.Transaction.AccountId)
+		require.Equal(t, trans.Amount, rsp.Transaction.Amount)
+		require.Equal(t, trans.TransactionType, rsp.Transaction.TransactionType)
+		require.NotEmpty(t, rsp.Transaction.CreatedAt)
+		rspTransCreated[i] = rsp
+	}
+	require.Len(t, rspTransCreated, len(reqTrans))
+
+	tests := []struct {
+		name       string
+		req        *pb.UpdateTransactionRequest
+		err        error
+		len        int
+		ids        []int64
+		accBalance float64
+	}{
+		{
+			name: "ErrMissingUserID",
+			req:  &pb.UpdateTransactionRequest{},
+			err:  errorSrv.ErrMissingUserID,
+		},
+		{
+			name: "ErrMissingAccountID",
+			req: &pb.UpdateTransactionRequest{
+				UserId: 1,
+			},
+			err: errorSrv.ErrMissingAccountID,
+		},
+		{
+			name: "ErrMissingTransactionID",
+			req: &pb.UpdateTransactionRequest{
+				UserId:    1,
+				AccountId: 1,
+			},
+			err: errorSrv.ErrMissingTransactionID,
+		},
+		{
+			name: "ErrAccountNotFound",
+			req: &pb.UpdateTransactionRequest{
+				UserId:    1,
+				AccountId: 1,
+				Transaction: &pb.Transaction{
+					Id: 1,
+				},
+			},
+			err: errorSrv.ErrAccountNotFound,
+		},
+		{
+			name: "ErrTransactionNotFound",
+			req: &pb.UpdateTransactionRequest{
+				UserId:    rspUserCreated.User.Id,
+				AccountId: rspAccCreated[0].Account.Id,
+				Transaction: &pb.Transaction{
+					Id: 1,
+				},
+			},
+			err: errorSrv.ErrTransactionNotFound,
+		},
+		{
+			name: "ErrInvalidWithdrawTransactionAmount",
+			req: &pb.UpdateTransactionRequest{
+				UserId:    rspUserCreated.User.Id,
+				AccountId: rspAccCreated[0].Account.Id,
+				Transaction: &pb.Transaction{
+					Id:     rspTransCreated[0].Transaction.Id,
+					Amount: 100000000,
+				},
+			},
+			err: errorSrv.ErrInvalidWithdrawTransactionAmount,
+		},
+		{
+			name: "ErrInvalidWithdrawTransactionAmountWithMask",
+			req: &pb.UpdateTransactionRequest{
+				UserId:    rspUserCreated.User.Id,
+				AccountId: rspAccCreated[0].Account.Id,
+				Transaction: &pb.Transaction{
+					Id:     rspTransCreated[0].Transaction.Id,
+					Amount: 100000000,
+				},
+				UpdateMask: &fieldmaskpb.FieldMask{
+					Paths: []string{"amount"},
+				},
+			},
+			err: errorSrv.ErrInvalidWithdrawTransactionAmount,
+		},
+		{
+			name: "ErrInvalidTransactionAmountGT0",
+			req: &pb.UpdateTransactionRequest{
+				UserId:    rspUserCreated.User.Id,
+				AccountId: rspAccCreated[0].Account.Id,
+				Transaction: &pb.Transaction{
+					Id:     rspTransCreated[1].Transaction.Id,
+					Amount: 1000,
+				},
+			},
+			err: errorSrv.ErrInvalidTransactionAmountGT0,
+		},
+		{
+			name: "ErrInvalidTransactionAmountGT0WithMask",
+			req: &pb.UpdateTransactionRequest{
+				UserId:    rspUserCreated.User.Id,
+				AccountId: rspAccCreated[0].Account.Id,
+				Transaction: &pb.Transaction{
+					Id:     rspTransCreated[1].Transaction.Id,
+					Amount: 1000,
+				},
+				UpdateMask: &fieldmaskpb.FieldMask{
+					Paths: []string{"amount"},
+				},
+			},
+			err: errorSrv.ErrInvalidTransactionAmountGT0,
+		},
+		{
+			name: "ErrInvalidUpdateTransactionID",
+			req: &pb.UpdateTransactionRequest{
+				UserId:    rspUserCreated.User.Id,
+				AccountId: rspAccCreated[0].Account.Id,
+				Transaction: &pb.Transaction{
+					Id:     rspTransCreated[1].Transaction.Id,
+					Amount: 10000,
+				},
+				UpdateMask: &fieldmaskpb.FieldMask{
+					Paths: []string{"id"},
+				},
+			},
+			err: errors.BadRequest("cannot update id", map[string]string{"update_mask": "cannot update id field"}),
+		},
+		{
+			name: "ErrInvalidUpdateTransactionType",
+			req: &pb.UpdateTransactionRequest{
+				UserId:    rspUserCreated.User.Id,
+				AccountId: rspAccCreated[0].Account.Id,
+				Transaction: &pb.Transaction{
+					Id:     rspTransCreated[1].Transaction.Id,
+					Amount: 10000,
+				},
+				UpdateMask: &fieldmaskpb.FieldMask{
+					Paths: []string{"transaction_type"},
+				},
+			},
+			err: errors.BadRequest("cannot update transaction type", map[string]string{"update_mask": "cannot update transaction_type"}),
+		},
+		{
+			name: "UpdateWithdrawTransSuccess",
+			req: &pb.UpdateTransactionRequest{
+				UserId:    rspUserCreated.User.Id,
+				AccountId: rspAccCreated[0].Account.Id,
+				Transaction: &pb.Transaction{
+					Id:     rspTransCreated[0].Transaction.Id,
+					Amount: 5000,
+				},
+			},
+			accBalance: 5000,
+		},
+		{
+			name: "UpdateDepositTransSuccess",
+			req: &pb.UpdateTransactionRequest{
+				UserId:    rspUserCreated.User.Id,
+				AccountId: rspAccCreated[0].Account.Id,
+				Transaction: &pb.Transaction{
+					Id:     rspTransCreated[1].Transaction.Id,
+					Amount: 10000,
+				},
+			},
+			accBalance: 5000,
+		},
+		{
+			name: "UpdateDepositTransWithMaskSuccess",
+			req: &pb.UpdateTransactionRequest{
+				UserId:    rspUserCreated.User.Id,
+				AccountId: rspAccCreated[0].Account.Id,
+				Transaction: &pb.Transaction{
+					Id:     rspTransCreated[1].Transaction.Id,
+					Amount: 50000,
+				},
+				UpdateMask: &fieldmaskpb.FieldMask{
+					Paths: []string{"amount"},
+				},
+			},
+			accBalance: 45000,
+		},
+		{
+			name: "UpdateWithdrawTransWithMaskSuccess",
+			req: &pb.UpdateTransactionRequest{
+				UserId:    rspUserCreated.User.Id,
+				AccountId: rspAccCreated[0].Account.Id,
+				Transaction: &pb.Transaction{
+					Id:     rspTransCreated[2].Transaction.Id,
+					Amount: 50000,
+				},
+				UpdateMask: &fieldmaskpb.FieldMask{
+					Paths: []string{"amount"},
+				},
+			},
+			accBalance: 5000,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rsp, err := s.UpdateTransaction(context.TODO(), tt.req)
+			if tt.err != nil {
+				require.ErrorIs(t, err, tt.err)
+				require.Nil(t, rsp)
+			} else {
+				require.NoError(t, err)
+				require.NotNil(t, rsp)
+				require.Equal(t, tt.req.Transaction.Id, rsp.Transaction.Id)
+				require.Equal(t, tt.req.AccountId, rsp.Transaction.AccountId)
+				require.Equal(t, tt.req.Transaction.Amount, rsp.Transaction.Amount)
+				//
+				accs, err := s.ListAccounts(context.TODO(), &pb.ListAccountsRequest{
+					UserId: wrapperspb.Int64(tt.req.UserId),
+					Id:     wrapperspb.Int64(rsp.Transaction.AccountId),
+				})
+				require.NoError(t, err)
+				require.NotNil(t, accs)
+				require.NotNil(t, accs.Accounts[0])
+				require.Equal(t, tt.accBalance, accs.Accounts[0].Balance)
 			}
 		})
 	}

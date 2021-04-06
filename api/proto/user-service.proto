@@ -90,6 +90,25 @@ service UserService {
             get: "/api/v1/users/{user_id}/transactions"
         };
     };
+    // delete user transaction
+    rpc DeleteTransaction(DeleteTransactionRequest) returns (DeleteTransactionResponse) {
+        option (google.api.http) = {
+            delete: "/api/v1/users/{user_id}/transactions/{id}"
+        };
+    };
+    // update user transaction
+    rpc UpdateTransaction(UpdateTransactionRequest) returns (UpdateTransactionResponse) {
+		option (google.api.http) = {
+            put: "/api/v1/users/{user_id}/transactions/{transaction.id}"
+			body: "transaction"
+            additional_bindings: [
+				{
+                    put: "/api/v1/users/{user_id}/transactions/{transaction.id}"
+					body: "*"
+				}
+			]
+		};
+	}
 
     // auth
 	rpc Login(LoginRequest) returns (LoginResponse) {

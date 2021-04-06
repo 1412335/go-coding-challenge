@@ -146,6 +146,12 @@
             "schema": {
               "$ref": "#/definitions/userLogoutRequest"
             }
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string"
           }
         ],
         "tags": [
@@ -360,6 +366,12 @@
             "schema": {
               "$ref": "#/definitions/userUpdateUserRequest"
             }
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string"
           }
         ],
         "tags": [
@@ -405,6 +417,13 @@
             "required": false,
             "type": "number",
             "format": "double"
+          },
+          {
+            "name": "id",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
           },
           {
             "name": "Authorization",
@@ -537,6 +556,111 @@
             "required": true,
             "schema": {
               "$ref": "#/definitions/userCreateTransactionRequest"
+            }
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "UserService"
+        ]
+      }
+    },
+    "/api/v1/users/{user_id}/transactions/{id}": {
+      "delete": {
+        "summary": "delete user transaction",
+        "operationId": "UserService_DeleteTransaction",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/userDeleteTransactionResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "account_id",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "UserService"
+        ]
+      }
+    },
+    "/api/v1/users/{user_id}/transactions/{transaction.id}": {
+      "put": {
+        "summary": "update user transaction",
+        "operationId": "UserService_UpdateTransaction2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/userUpdateTransactionResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "transaction.id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/userUpdateTransactionRequest"
             }
           },
           {
@@ -772,6 +896,18 @@
         }
       }
     },
+    "userDeleteTransactionResponse": {
+      "type": "object",
+      "properties": {
+        "ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "int64"
+          }
+        }
+      }
+    },
     "userDeleteUserResponse": {
       "type": "object",
       "properties": {
@@ -784,7 +920,7 @@
     "userListAccountsResponse": {
       "type": "object",
       "properties": {
-        "account": {
+        "accounts": {
           "type": "array",
           "items": {
             "$ref": "#/definitions/userAccount"
@@ -885,6 +1021,33 @@
       ],
       "default": "WITHDRAW",
       "title": "transactions"
+    },
+    "userUpdateTransactionRequest": {
+      "type": "object",
+      "properties": {
+        "user_id": {
+          "type": "string",
+          "format": "int64"
+        },
+        "account_id": {
+          "type": "string",
+          "format": "int64"
+        },
+        "transaction": {
+          "$ref": "#/definitions/userTransaction"
+        },
+        "update_mask": {
+          "$ref": "#/definitions/protobufFieldMask"
+        }
+      }
+    },
+    "userUpdateTransactionResponse": {
+      "type": "object",
+      "properties": {
+        "transaction": {
+          "$ref": "#/definitions/userTransaction"
+        }
+      }
     },
     "userUpdateUserRequest": {
       "type": "object",
