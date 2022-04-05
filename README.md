@@ -1,4 +1,4 @@
-# 2021 Moneyforward - Go Coding Challenge
+# Go Coding Challenge
 
 ## Overrall
 
